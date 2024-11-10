@@ -98,8 +98,5 @@ export async function parseRecipeFromHtml(data: string): Promise<Recipe> {
 		const name = $(elem).find('.wprm-recipe-ingredient-name').text().trim();
 		recipe.ingredients.push(`${amount} ${unit} ${name}`);
 	});
-	console.log(
-		`Recipe for "${recipe.name}" is: ${JSON.stringify(recipe, null, 2)}`
-	);
 	return recipe;
 }
