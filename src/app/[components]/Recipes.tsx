@@ -1,10 +1,9 @@
 'use client';
-import { llm } from '@/utilities/llm';
-import Image from 'next/image';
-import { Recipe } from '../../../public/scripts.ts/love-and-lemons';
-import * as React from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { createRecipePrompt } from '@/utilities/prompts';
+import { useMutation } from '@tanstack/react-query';
+import Image from 'next/image';
+import * as React from 'react';
+import { Recipe } from '../../../public/scripts.ts/love-and-lemons';
 
 export default function Recipes({ recipes }: { recipes: Recipe[] }) {
 	const [dietaryPreferences, setDietaryPreferences] = React.useState('');
@@ -35,7 +34,7 @@ export default function Recipes({ recipes }: { recipes: Recipe[] }) {
 			{isError && <div>Error: {isError}</div>}
 			{llmResult != null && (
 				<div>
-					{llmResult.map((recipe) => (
+					{llmResult.map((recipe: Recipe) => (
 						<div key={recipe.name}>
 							<Image
 								src={recipe.image}
