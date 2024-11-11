@@ -1,4 +1,4 @@
-import { createSupabaseClient } from '../supabase/server';
+import { createSupabaseClient } from '../supabase/genericServer';
 import { LoveAndLemons, Recipe } from './love-and-lemons';
 
 interface ScrapingService {
@@ -16,19 +16,14 @@ export const scrapingService: ScrapingService = {
 		}
 	},
 	uploadRecipesToDatabase: async (recipes: readonly Recipe[]) => {
-		try {
-			const supabase = await createSupabaseClient();
-			const { error } = await supabase
-				.from('recipes')
-				.upsert(recipes, { onConflict: 'url', ignoreDuplicates: true });
-			if (error) {
-				console.error('Error inserting data:', error);
-			} else {
-				console.log('Data inserted successfully');
-			}
-		} catch (error) {
-			console.error('Error uploading recipes:', error);
-			throw error;
+		const supabase = await createSupabaseClient();
+		const { error } = await supabase
+			.from('recipes')
+			.upsert(recipes, { onConflict: 'url', ignoreDuplicates: true });
+		if (error) {
+			console.error('Error inserting data:', error);
+		} else {
+			console.log('Data inserted successfully');
 		}
 	},
 };

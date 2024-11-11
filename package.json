@@ -11,6 +11,7 @@
 		"test:watch": "jest --watch"
 	},
 	"dependencies": {
+		"@supabase/ssr": "^0.5.2",
 		"@supabase/supabase-js": "^2.46.1",
 		"@tanstack/react-query": "^5.59.20",
 		"autoprefixer": "^10.4.20",

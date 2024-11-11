@@ -1,32 +1,34 @@
-import { Metadata, ResolvingMetadata } from 'next';
+import { createClient } from '@/services/supabase/server';
+import { getUser } from '@/utilities/getUser';
+import { redirect } from 'next/navigation';
 
 type UserProfileProps = {
 	params: { username: string };
 };
 
-export async function generateMetadata(
-	{ params: { username } }: UserProfileProps,
-	parent: ResolvingMetadata
-): Promise<Metadata> {
-	return {
-		title: username,
-		description: `${username}'s profile`,
-		icons: (await parent).icons,
-	};
-}
+export default async function UserProfile({ params }: UserProfileProps) {
+	const supabase = await createClient();
+	const { isLoggedIn, user } = await getUser();
+	if (!isLoggedIn) {
+		redirect('/login');
+	}
+	const { data: recipes, error } = await supabase
+		.from('weekly_user_recipes')
+		.select('*');
 
-export default async function UserProfile({
-	params: { username },
-}: UserProfileProps) {
 	return (
 		<div>
-			<div>{username}</div>
+			<p>Hello {user.email}</p>
 			<div>This week</div>
 			<div className="flex gap-5">
 				<div>Grocery list</div>
 				<div>Recipes</div>
+				{error != null ? (
+					<div>Error loading recipes</div>
+				) : (
+					<div>{recipes}</div>
+				)}
 			</div>
-			<div>Liked recipes:</div>
 		</div>
 	);
 }

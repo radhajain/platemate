@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import QueryProvider from './_components/QueryClientProvider';
 import './globals.css';
+import { getUser } from '@/utilities/getUser';
 
 const geistSans = localFont({
 	src: './fonts/GeistVF.woff',
@@ -19,11 +20,12 @@ export const metadata: Metadata = {
 	description: 'Create weekly menus based on your preferences',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	const { isLoggedIn, user } = await getUser();
 	return (
 		<html lang="en">
 			<body
@@ -31,6 +33,7 @@ export default function RootLayout({
 			>
 				<QueryProvider>
 					<main className="flex justify-center h-screen">
+						<div>{isLoggedIn && <div>{user.email}</div>}</div>
 						<div className="w-full md:max-w-6xl flex bg-white">{children}</div>
 					</main>
 				</QueryProvider>
