@@ -2,13 +2,17 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import { uniqBy } from 'lodash';
 
+const allRecipeUrls = [
+	'https://www.loveandlemons.com/easy-dinner-ideas/',
+	'https://www.loveandlemons.com/rice-bowl-recipes/',
+];
+
 export type Recipe = {
 	name: string;
-	image: string;
-	rating: {
-		average: number;
-		count: number;
-	};
+	url?: string;
+	image?: string;
+	ratingCount?: number;
+	ratingAvg?: number;
 	servings: string;
 	prepTime: string;
 	cookTime: string;
@@ -17,8 +21,10 @@ export type Recipe = {
 	notes: string;
 };
 
-export async function getAllRecipes(allRecipeUrl: string) {
-	const recipeUrls = await getRecipeLinks(allRecipeUrl);
+async function getAllRecipes(): Promise<readonly Recipe[]> {
+	const recipeUrls = (
+		await Promise.all(allRecipeUrls.map(async (url) => getRecipeLinks(url)))
+	).flat();
 	const recipes = await Promise.all(
 		recipeUrls.map(async (url) => {
 			try {
@@ -30,11 +36,14 @@ export async function getAllRecipes(allRecipeUrl: string) {
 		})
 	);
 	return uniqBy(
-		recipes.filter((recipe) => recipe !== null),
+		recipes.filter(
+			(recipe) => recipe != null && recipe.name != null
+		) as Recipe[],
 		'name'
 	);
 }
 
+// Exported for testing
 export async function getRecipeLinks(url: string): Promise<string[]> {
 	const { data } = await axios.get(url);
 	const $ = load(data);
@@ -54,24 +63,26 @@ export async function getRecipeLinks(url: string): Promise<string[]> {
 
 async function scrapeRecipe(url: string): Promise<Recipe> {
 	const { data } = await axios.get(url);
-	return parseRecipeFromHtml(data);
+	const recipe = parseRecipeFromHtml(data);
+	return { ...recipe, url };
 }
 
-export async function parseRecipeFromHtml(data: string): Promise<Recipe> {
+// Exported for testing
+export async function parseRecipeFromHtml(
+	data: string
+): Promise<Omit<Recipe, 'url'>> {
 	const $ = load(data);
 	const recipeContainer = $('.wprm-recipe-container');
 
-	const recipe: Recipe = {
+	const recipe: Omit<Recipe, 'url'> = {
 		name: recipeContainer.find('.wprm-recipe-name').text().trim(),
-		image: recipeContainer.find('.wprm-recipe-image img').attr('src') ?? '',
-		rating: {
-			average:
-				parseFloat(
-					recipeContainer.find('.wprm-recipe-rating-average').text()
-				) || 0,
-			count:
-				parseInt(recipeContainer.find('.wprm-recipe-rating-count').text()) || 0,
-		},
+		image: recipeContainer.find('.wprm-recipe-image img').attr('src'),
+		ratingAvg: parseFloat(
+			recipeContainer.find('.wprm-recipe-rating-average').text()
+		),
+		ratingCount: parseInt(
+			recipeContainer.find('.wprm-recipe-rating-count').text()
+		),
 		servings: recipeContainer
 			.find('.wprm-recipe-servings')
 			.data('value') as string,
@@ -100,3 +111,7 @@ export async function parseRecipeFromHtml(data: string): Promise<Recipe> {
 	});
 	return recipe;
 }
+
+export const LoveAndLemons = {
+	getAllRecipes,
+};

@@ -3,7 +3,7 @@ import { createRecipePrompt } from '@/utilities/prompts';
 import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
 import * as React from 'react';
-import { Recipe } from '../../../public/scripts.ts/love-and-lemons';
+import { Recipe } from '../../services/scraping/love-and-lemons';
 
 export default function Recipes({ recipes }: { recipes: Recipe[] }) {
 	const [dietaryPreferences, setDietaryPreferences] = React.useState('');
@@ -36,12 +36,14 @@ export default function Recipes({ recipes }: { recipes: Recipe[] }) {
 				<div>
 					{llmResult.map((recipe: Recipe) => (
 						<div key={recipe.name}>
-							<Image
-								src={recipe.image}
-								alt={recipe.name}
-								height={100}
-								width={100}
-							/>
+							{recipe.image && (
+								<Image
+									src={recipe.image}
+									alt={recipe.name}
+									height={100}
+									width={100}
+								/>
+							)}
 							<span>{recipe.name}</span>
 						</div>
 					))}

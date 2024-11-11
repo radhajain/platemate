@@ -1,4 +1,4 @@
-import { Recipe } from '../../public/scripts.ts/love-and-lemons';
+import { Recipe } from '../services/scraping/love-and-lemons';
 
 export function createRecipePrompt(preferences: string, recipes: Recipe[]) {
 	const prompt = `Out of the given recipes, which recipes would the user like based on their dietary preferences?`;
