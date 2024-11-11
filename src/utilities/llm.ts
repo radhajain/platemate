@@ -1,6 +1,7 @@
-// Runs on Ollama llama3.2:1b
+import { Prompt } from './prompts/prompt';
 
-export async function llm(prompt: string) {
+// Runs on Ollama llama3.2:1b
+export async function llm(prompt: Prompt) {
 	console.log('sending ', prompt);
 	const url = 'http://localhost:11434/api/generate';
 	const headers = {
@@ -11,7 +12,7 @@ export async function llm(prompt: string) {
 		headers: headers,
 		body: JSON.stringify({
 			model: 'llama3.2:1b',
-			prompt: prompt,
+			prompt: Prompt.from(prompt),
 			stream: false,
 		}),
 	});

@@ -1,10 +1,9 @@
-import { parseRecipeFromHtml } from '../love-and-lemons';
 import '@testing-library/jest-dom';
+import { LoveAndLemons } from '../love-and-lemons';
 
 describe('scrapeRecipe', () => {
 	it('should return all fields with non-empty values', async () => {
-		const recipe = await parseRecipeFromHtml(htmlRecipe); // Pass any required arguments
-
+		const recipe = await LoveAndLemons.parseRecipeFromHtml(htmlRecipe);
 		expect(recipe.prepTime).toEqual('15 minutes');
 		expect(recipe.cookTime).toEqual('30 minutes');
 	});

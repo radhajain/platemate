@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-import QueryProvider from './[components]/QueryClientProvider';
+import QueryProvider from './_components/QueryClientProvider';
 import './globals.css';
 
 const geistSans = localFont({
@@ -29,7 +29,11 @@ export default function RootLayout({
 			<body
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
-				<QueryProvider>{children}</QueryProvider>
+				<QueryProvider>
+					<main className="flex justify-center h-screen">
+						<div className="w-full md:max-w-6xl flex bg-white">{children}</div>
+					</main>
+				</QueryProvider>
 			</body>
 		</html>
 	);

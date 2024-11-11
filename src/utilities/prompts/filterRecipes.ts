@@ -1,7 +1,11 @@
-import { Recipe } from '../services/scraping/love-and-lemons';
+import { Recipe } from '../../services/scraping/love-and-lemons';
+import { Prompt } from './prompt';
 
-export function createRecipePrompt(preferences: string, recipes: Recipe[]) {
-	const prompt = `Out of the given recipes, which recipes would the user like based on their dietary preferences?`;
+export function filterRecipesPrompt(
+	preferences: string,
+	recipes: readonly Recipe[]
+): Prompt {
+	const systemPrompt = `Out of the given recipes, which recipes would the user like based on their dietary preferences?`;
 	const returnType = `Return a list of the recipes' names.`;
 	const examples = `
         Examples:
@@ -23,5 +27,11 @@ export function createRecipePrompt(preferences: string, recipes: Recipe[]) {
 		// return `${recipe.name}\n${recipe.ingredients.join('\n')}`;
 		return `${recipe.name}`;
 	})}]`;
-	return `${prompt}\n${returnType}\n${examples}\n---\n${dietaryPreferences}\n${recipeList}\n\nOutput:`;
+
+	return {
+		systemPrompt,
+		returnType,
+		examples,
+		taskPrompt: `${dietaryPreferences}\n${recipeList}`,
+	};
 }

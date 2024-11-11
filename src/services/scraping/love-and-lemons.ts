@@ -9,7 +9,7 @@ const allRecipeUrls = [
 
 export type Recipe = {
 	name: string;
-	url?: string;
+	url: string;
 	image?: string;
 	ratingCount?: number;
 	ratingAvg?: number;
@@ -19,6 +19,12 @@ export type Recipe = {
 	ingredients: string[];
 	instructions: string[];
 	notes: string;
+};
+
+export const LoveAndLemons = {
+	getAllRecipes,
+	// For testing
+	parseRecipeFromHtml,
 };
 
 async function getAllRecipes(): Promise<readonly Recipe[]> {
@@ -43,8 +49,7 @@ async function getAllRecipes(): Promise<readonly Recipe[]> {
 	);
 }
 
-// Exported for testing
-export async function getRecipeLinks(url: string): Promise<string[]> {
+async function getRecipeLinks(url: string): Promise<string[]> {
 	const { data } = await axios.get(url);
 	const $ = load(data);
 	const links = new Set<string>();
@@ -63,14 +68,11 @@ export async function getRecipeLinks(url: string): Promise<string[]> {
 
 async function scrapeRecipe(url: string): Promise<Recipe> {
 	const { data } = await axios.get(url);
-	const recipe = parseRecipeFromHtml(data);
+	const recipe = await parseRecipeFromHtml(data);
 	return { ...recipe, url };
 }
 
-// Exported for testing
-export async function parseRecipeFromHtml(
-	data: string
-): Promise<Omit<Recipe, 'url'>> {
+async function parseRecipeFromHtml(data: string): Promise<Omit<Recipe, 'url'>> {
 	const $ = load(data);
 	const recipeContainer = $('.wprm-recipe-container');
 
@@ -111,7 +113,3 @@ export async function parseRecipeFromHtml(
 	});
 	return recipe;
 }
-
-export const LoveAndLemons = {
-	getAllRecipes,
-};
