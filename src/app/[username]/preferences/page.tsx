@@ -8,7 +8,7 @@ export default async function Page() {
 		.from('user_liked_recipes')
 		.select('recipe_url');
 
-	const { isLoggedIn, user } = await getUser();
+	const { isLoggedIn } = await getUser();
 	if (!isLoggedIn) {
 		redirect('/login');
 	}
@@ -21,7 +21,7 @@ export default async function Page() {
 				) : (
 					<div>
 						{likedRecipes?.map(({ recipe_url }) => (
-							<div>{recipe_url}</div>
+							<div key={recipe_url}>{recipe_url}</div>
 						))}
 					</div>
 				)}

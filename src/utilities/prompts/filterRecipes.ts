@@ -1,4 +1,4 @@
-import { Recipe } from '../../services/scraping/love-and-lemons';
+import { Recipe } from '../../../database.types';
 import { Prompt } from './prompt';
 
 export function filterRecipesPrompt(

@@ -1,8 +1,8 @@
 import { Prompt } from './prompts/prompt';
 
 // Runs on Ollama llama3.2:1b
-export async function llm(prompt: Prompt) {
-	console.log('sending ', prompt);
+export async function llm(prompt: Prompt): Promise<string | undefined> {
+	console.log('sending ', Prompt.from(prompt));
 	const url = 'http://localhost:11434/api/generate';
 	const headers = {
 		'Content-Type': 'application/json',
@@ -18,9 +18,10 @@ export async function llm(prompt: Prompt) {
 	});
 	if (response.status === 200) {
 		const text = await response.text();
-		console.log(text);
 		const data = JSON.parse(text);
-		return data['response'];
+		const llmResponse = data['response'];
+		console.log(llmResponse);
+		return llmResponse;
 	} else {
 		console.error(
 			'Failed to generate text:',

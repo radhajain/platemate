@@ -8,9 +8,9 @@ export const Prompt = {
 	from: ({
 		systemPrompt,
 		returnType,
-		examples,
+		// examples,
 		taskPrompt,
 	}: Prompt): string => {
-		return `${systemPrompt}\n${returnType}\n${examples}\n---\n${taskPrompt}\n\nOutput:`;
+		return `${systemPrompt}\n${returnType}\n\n---\n${taskPrompt}\n\nOutput:`;
 	},
 };

@@ -1,34 +1,27 @@
 import { createClient } from '@/services/supabase/server';
 import { getUser } from '@/utilities/getUser';
 import { redirect } from 'next/navigation';
+import { Recipe } from '../../../database.types';
+import { GenerateWeeklyRecipes } from '../_components/GenerateWeeklyRecipes';
 
-type UserProfileProps = {
-	params: { username: string };
-};
-
-export default async function UserProfile({ params }: UserProfileProps) {
+export default async function UserProfile() {
 	const supabase = await createClient();
 	const { isLoggedIn, user } = await getUser();
 	if (!isLoggedIn) {
 		redirect('/login');
 	}
-	const { data: recipes, error } = await supabase
-		.from('weekly_user_recipes')
-		.select('*');
-
+	const userWeeklyRecipesQuery = supabase.from('weekly_user_recipes').select(`
+    recipes (*)
+  `);
+	const { data, error } = await userWeeklyRecipesQuery;
+	if (error) {
+		redirect('/error');
+	}
+	const recipes: readonly Recipe[] = data.flatMap(({ recipes }) => recipes);
 	return (
 		<div>
 			<p>Hello {user.email}</p>
-			<div>This week</div>
-			<div className="flex gap-5">
-				<div>Grocery list</div>
-				<div>Recipes</div>
-				{error != null ? (
-					<div>Error loading recipes</div>
-				) : (
-					<div>{recipes}</div>
-				)}
-			</div>
+			<GenerateWeeklyRecipes user={user} recipes={recipes} />
 		</div>
 	);
 }

@@ -1,8 +1,9 @@
+import { getUser } from '@/utilities/getUser';
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import QueryProvider from './_components/QueryClientProvider';
 import './globals.css';
-import { getUser } from '@/utilities/getUser';
+import { SignoutButton } from './_components/SignoutButton';
 
 const geistSans = localFont({
 	src: './fonts/GeistVF.woff',
@@ -33,7 +34,14 @@ export default async function RootLayout({
 			>
 				<QueryProvider>
 					<main className="flex justify-center h-screen">
-						<div>{isLoggedIn && <div>{user.email}</div>}</div>
+						<div>
+							{isLoggedIn && (
+								<div className="flex flex-col gap-5">
+									<div>{user.email}</div>
+									<SignoutButton />
+								</div>
+							)}
+						</div>
 						<div className="w-full md:max-w-6xl flex bg-white">{children}</div>
 					</main>
 				</QueryProvider>

@@ -1,14 +1,14 @@
 'use client';
-import { filterRecipesPrompt } from '@/utilities/prompts/filterRecipes';
-import { User } from '@supabase/supabase-js';
-import Image from 'next/image';
-import * as React from 'react';
-import { Recipe } from '../../services/scraping/love-and-lemons';
-import { useMutation } from '@tanstack/react-query';
-import { Prompt } from '@/utilities/prompts/prompt';
+import { saveUserLikedRecipes } from '@/services/supabase/api';
 import { useSet } from '@/utilities/hooks/useSet';
-import { redirect, useRouter } from 'next/navigation';
-import { createClient } from '@/services/supabase/client';
+import { filterRecipesPrompt } from '@/utilities/prompts/filterRecipes';
+import { Prompt } from '@/utilities/prompts/prompt';
+import { User } from '@supabase/supabase-js';
+import { useMutation } from '@tanstack/react-query';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import * as React from 'react';
+import { Recipe } from '../../../database.types';
 
 export default function LlmFilteredRecipes({
 	recipes,
@@ -65,24 +65,17 @@ export function RecipeSelector({
 }) {
 	const likedRecipes = useSet(initiallyLikedRecipeUrls);
 	const router = useRouter();
-	const supabase = createClient();
-	const { mutate: handleSavePreferences } = useMutation({
+	const { mutate: handleSavePreferences, isPending } = useMutation({
 		mutationFn: async () => {
 			if (user == null) {
-				router.push(`/login?redirectedFrom=recipe-selection`);
-			} else {
-				const { error } = await supabase.from('user_liked_recipes').insert(
-					Array.from(likedRecipes.value).map((url) => ({
-						user_id: user.id,
-						recipe_url: url,
-					}))
+				localStorage.setItem(
+					'likedRecipesResults',
+					JSON.stringify(likedRecipes.value)
 				);
-				if (error) {
-					console.error('Error inserting data:', error);
-				} else {
-					console.log('Data inserted successfully');
-					router.push(`/${user.id}`);
-				}
+				router.push(`/login`);
+			} else {
+				await saveUserLikedRecipes(user, likedRecipes.value);
+				router.push(`/${user.id}`);
 			}
 		},
 	});
@@ -99,28 +92,34 @@ export function RecipeSelector({
 							className="hidden peer"
 							onChange={() => likedRecipes.toggle(recipe.url)}
 						/>
-						<label
-							htmlFor={recipe.url}
-							className="inline-flex items-center justify-between w-full p-5 text-gray-500 bg-white border-2 border-gray-200 rounded-lg cursor-pointer dark:hover:text-gray-300 dark:border-gray-700 peer-checked:border-blue-600 hover:text-gray-600 dark:peer-checked:text-gray-300 peer-checked:text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:bg-gray-800 dark:hover:bg-gray-700"
-						>
-							<div className="block">
-								{recipe.image && (
-									<Image
-										src={recipe.image}
-										alt={recipe.name}
-										height={100}
-										width={100}
-									/>
-								)}
-								<div className="w-full text-lg font-semibold">
-									{recipe.name}
-								</div>
-							</div>
-						</label>
+						<RecipeDisplay recipe={recipe} />
 					</li>
 				))}
 			</ul>
-			<button onClick={() => handleSavePreferences()}>Save</button>
+			<button onClick={() => handleSavePreferences()} disabled={isPending}>
+				{isPending ? 'Loading...' : 'Save'}
+			</button>
 		</div>
+	);
+}
+
+export function RecipeDisplay({ recipe }: { recipe: Recipe }) {
+	return (
+		<label
+			htmlFor={recipe.url}
+			className="inline-flex items-center justify-between w-full p-5 text-gray-500 bg-white border-2 border-gray-200 rounded-lg cursor-pointer dark:hover:text-gray-300 dark:border-gray-700 peer-checked:border-blue-600 hover:text-gray-600 dark:peer-checked:text-gray-300 peer-checked:text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:bg-gray-800 dark:hover:bg-gray-700"
+		>
+			<div className="block">
+				{recipe.image && (
+					<Image
+						src={recipe.image}
+						alt={recipe.name ?? 'recipe'}
+						height={100}
+						width={100}
+					/>
+				)}
+				<div className="w-full text-lg font-semibold">{recipe.name}</div>
+			</div>
+		</label>
 	);
 }

@@ -1,25 +1,12 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 import { uniqBy } from 'lodash';
+import { Recipe } from '../../../database.types';
 
 const allRecipeUrls = [
 	'https://www.loveandlemons.com/easy-dinner-ideas/',
 	'https://www.loveandlemons.com/rice-bowl-recipes/',
 ];
-
-export type Recipe = {
-	name: string;
-	url: string;
-	image?: string;
-	ratingCount?: number;
-	ratingAvg?: number;
-	servings: string;
-	prepTime: string;
-	cookTime: string;
-	ingredients: string[];
-	instructions: string[];
-	notes: string;
-};
 
 export const LoveAndLemons = {
 	getAllRecipes,
@@ -78,7 +65,7 @@ async function parseRecipeFromHtml(data: string): Promise<Omit<Recipe, 'url'>> {
 
 	const recipe: Omit<Recipe, 'url'> = {
 		name: recipeContainer.find('.wprm-recipe-name').text().trim(),
-		image: recipeContainer.find('.wprm-recipe-image img').attr('src'),
+		image: recipeContainer.find('.wprm-recipe-image img').attr('src') ?? null,
 		ratingAvg: parseFloat(
 			recipeContainer.find('.wprm-recipe-rating-average').text()
 		),
@@ -102,14 +89,14 @@ async function parseRecipeFromHtml(data: string): Promise<Omit<Recipe, 'url'>> {
 	};
 
 	recipeContainer.find('.wprm-recipe-instruction-text').each((_, elem) => {
-		recipe.instructions.push($(elem).text().trim());
+		(recipe.instructions ?? []).push($(elem).text().trim());
 	});
 
 	recipeContainer.find('.wprm-recipe-ingredient').each((_, elem) => {
 		const amount = $(elem).find('.wprm-recipe-ingredient-amount').text().trim();
 		const unit = $(elem).find('.wprm-recipe-ingredient-unit').text().trim();
 		const name = $(elem).find('.wprm-recipe-ingredient-name').text().trim();
-		recipe.ingredients.push(`${amount} ${unit} ${name}`);
+		(recipe.ingredients ?? []).push(`${amount} ${unit} ${name}`);
 	});
 	return recipe;
 }
