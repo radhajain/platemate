@@ -1,5 +1,6 @@
+import { Recipe } from '../../../database.types';
 import { createSupabaseClient } from '../supabase/genericServer';
-import { LoveAndLemons, Recipe } from './love-and-lemons';
+import { LoveAndLemons } from './love-and-lemons';
 
 interface ScrapingService {
 	fetchAllRecipes: () => Promise<readonly Recipe[]>;
