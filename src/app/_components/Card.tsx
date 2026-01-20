@@ -1,10 +1,9 @@
 'use client';
 
+import { getSource } from '@/utilities/getSource';
 import Image from 'next/image';
-import * as React from 'react';
 import { Recipe } from '../../../database.types';
 import { CheckIcon } from './Button';
-import { getSource } from '@/utilities/getSource';
 
 // Heart icons for like functionality
 export function HeartIcon({ filled = false }: { filled?: boolean }) {
