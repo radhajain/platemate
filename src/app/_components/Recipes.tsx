@@ -100,6 +100,25 @@ export function RecipeSelector({
 	});
 
 	const selectedCount = likedRecipes.value.size;
+	const allSelected = selectedCount === recipes.length && recipes.length > 0;
+
+	const handleSelectAll = () => {
+		if (allSelected) {
+			// Deselect all
+			recipes.forEach((recipe) => {
+				if (likedRecipes.value.has(recipe.url)) {
+					likedRecipes.toggle(recipe.url);
+				}
+			});
+		} else {
+			// Select all
+			recipes.forEach((recipe) => {
+				if (!likedRecipes.value.has(recipe.url)) {
+					likedRecipes.toggle(recipe.url);
+				}
+			});
+		}
+	};
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -112,14 +131,22 @@ export function RecipeSelector({
 						{selectedCount} recipe{selectedCount !== 1 ? 's' : ''} selected
 					</p>
 				</div>
-				<Button
-					variant="primary-filled"
-					onClick={() => handleSavePreferences()}
-					isLoading={isPending}
-					disabled={selectedCount === 0}
-				>
-					Save & Continue
-				</Button>
+				<div className="flex items-center gap-3">
+					<button
+						onClick={handleSelectAll}
+						className="text-sm text-primary hover:text-primary-dark transition-colors"
+					>
+						{allSelected ? 'Deselect All' : 'Select All'}
+					</button>
+					<Button
+						variant="primary-filled"
+						onClick={() => handleSavePreferences()}
+						isLoading={isPending}
+						disabled={selectedCount === 0}
+					>
+						Save & Continue
+					</Button>
+				</div>
 			</div>
 
 			<div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">

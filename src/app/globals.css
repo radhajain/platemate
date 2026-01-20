@@ -65,3 +65,59 @@ body {
            hover:shadow-md;
   }
 }
+
+/* Floating animation for splash page elements */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes float-medium {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes float-fast {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float-grocery {
+  0%, 100% {
+    transform: translateY(0px) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-3deg);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: float-medium 3.5s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.animate-float-fast {
+  animation: float-fast 3s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.animate-float-grocery {
+  animation: float-grocery 4.5s ease-in-out infinite;
+  animation-delay: 0.75s;
+}

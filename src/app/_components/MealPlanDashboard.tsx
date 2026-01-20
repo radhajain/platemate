@@ -2,6 +2,7 @@
 
 import {
 	getSuggestedRecipes,
+	getUserLikedRecipes,
 	getUserLikedRecipeUrls,
 	removeRecipeFromWeeklyPlan,
 	saveWeeklyPlan,
@@ -14,7 +15,7 @@ import { Recipe } from '../../../database.types';
 import { RecipeCard, RecipeDetailPanel } from './Card';
 import { GroceryList } from './GroceryList';
 
-type ViewMode = 'plan' | 'suggestions' | 'browse';
+type ViewMode = 'plan' | 'choose' | 'suggestions' | 'browse';
 
 interface MealPlanDashboardProps {
 	user: User;
@@ -36,6 +37,9 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 	const [userRequest, setUserRequest] = useState('');
 	const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 	const [suggestionReasoning, setSuggestionReasoning] = useState('');
+	const [allLikedRecipes, setAllLikedRecipes] = useState<Recipe[]>([]);
+	const [manuallyChosen, setManuallyChosen] = useState<Set<string>>(new Set());
+	const [isLoadingLikedRecipes, setIsLoadingLikedRecipes] = useState(false);
 	const [expandedRecipeUrl, setExpandedRecipeUrl] = useState<string | null>(
 		// Auto-expand first recipe if we have recipes
 		initialRecipes.length > 0 ? initialRecipes[0].url : null
@@ -49,6 +53,28 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		}
 		loadLikedUrls();
 	}, [user.id]);
+
+	// Load all liked recipes for "Choose Your Own" mode
+	const loadLikedRecipesForChoosing = useCallback(async () => {
+		if (allLikedRecipes.length > 0) return; // Already loaded
+		setIsLoadingLikedRecipes(true);
+		const recipes = await getUserLikedRecipes(user.id);
+		setAllLikedRecipes(recipes);
+		setIsLoadingLikedRecipes(false);
+	}, [user.id, allLikedRecipes.length]);
+
+	// Toggle manually chosen recipe
+	const toggleManuallyChosen = useCallback((url: string) => {
+		setManuallyChosen((prev) => {
+			const newSet = new Set(prev);
+			if (newSet.has(url)) {
+				newSet.delete(url);
+			} else {
+				newSet.add(url);
+			}
+			return newSet;
+		});
+	}, []);
 
 	// Handle getting suggestions
 	const handleGetSuggestions = useCallback(async () => {
@@ -83,15 +109,35 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 
 	// Handle saving the weekly plan
 	const handleSavePlan = useCallback(async () => {
-		const urls = Array.from(selectedForPlan);
+		// Combine manually chosen recipes with AI-selected ones
+		const allSelectedUrls = new Set([...manuallyChosen, ...selectedForPlan]);
+		const urls = Array.from(allSelectedUrls);
 		await saveWeeklyPlan(user.id, urls, weekStart);
-		// Update weekly recipes from selected
-		const newWeeklyRecipes = suggestedRecipes.filter((r) =>
-			selectedForPlan.has(r.url)
-		);
-		setWeeklyRecipes(newWeeklyRecipes);
+		// Update weekly recipes from selected (combine from both sources)
+		const chosenRecipes = allLikedRecipes.filter((r) => manuallyChosen.has(r.url));
+		const aiSelectedRecipes = suggestedRecipes.filter((r) => selectedForPlan.has(r.url));
+		// Deduplicate
+		const allRecipes = [...chosenRecipes];
+		for (const r of aiSelectedRecipes) {
+			if (!allRecipes.some((existing) => existing.url === r.url)) {
+				allRecipes.push(r);
+			}
+		}
+		setWeeklyRecipes(allRecipes);
 		setViewMode('plan');
-	}, [selectedForPlan, suggestedRecipes, user.id, weekStart]);
+		// Reset selections
+		setManuallyChosen(new Set());
+		setSelectedForPlan(new Set());
+	}, [selectedForPlan, manuallyChosen, suggestedRecipes, allLikedRecipes, user.id, weekStart]);
+
+	// Handle proceeding from "choose your own" to AI suggestions
+	const handleProceedToSuggestions = useCallback(() => {
+		setViewMode('suggestions');
+		// Pre-select manually chosen recipes in the suggestions view
+		if (manuallyChosen.size > 0) {
+			setSelectedForPlan(new Set(manuallyChosen));
+		}
+	}, [manuallyChosen]);
 
 	// Handle removing a recipe from the plan
 	const handleRemoveFromPlan = useCallback(
@@ -216,18 +262,29 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 							View Current Plan
 						</button>
 					)}
-					{viewMode === 'plan' && (
-						<button
-							onClick={() => {
-								setViewMode('suggestions');
-								if (suggestedRecipes.length === 0) {
-									handleGetSuggestions();
-								}
-							}}
-							className="btn-primary-filled"
-						>
-							{weeklyRecipes.length > 0 ? 'Modify Plan' : 'Create Plan'}
-						</button>
+					{viewMode === 'plan' && weeklyRecipes.length > 0 && (
+						<>
+							<button
+								onClick={() => {
+									setViewMode('choose');
+									loadLikedRecipesForChoosing();
+								}}
+								className="btn-primary"
+							>
+								Choose Your Own
+							</button>
+							<button
+								onClick={() => {
+									setViewMode('suggestions');
+									if (suggestedRecipes.length === 0) {
+										handleGetSuggestions();
+									}
+								}}
+								className="btn-primary-filled"
+							>
+								Get AI Suggestions
+							</button>
+						</>
 					)}
 				</div>
 			</div>
@@ -242,31 +299,56 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 							showRemove: true,
 							columns: 3,
 						})}
-						<button
-							onClick={() => {
-								setViewMode('suggestions');
-								if (suggestedRecipes.length === 0) {
-									handleGetSuggestions();
-								}
-							}}
-							className="mt-4 text-sm text-charcoal-muted hover:text-primary transition-colors flex items-center gap-1"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								strokeWidth={1.5}
-								stroke="currentColor"
-								className="w-4 h-4"
+						<div className="mt-4 flex gap-4">
+							<button
+								onClick={() => {
+									setViewMode('choose');
+									loadLikedRecipesForChoosing();
+								}}
+								className="text-sm text-charcoal-muted hover:text-primary transition-colors flex items-center gap-1"
 							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M12 4.5v15m7.5-7.5h-15"
-								/>
-							</svg>
-							Add more recipes
-						</button>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									strokeWidth={1.5}
+									stroke="currentColor"
+									className="w-4 h-4"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M12 4.5v15m7.5-7.5h-15"
+									/>
+								</svg>
+								Choose your own
+							</button>
+							<button
+								onClick={() => {
+									setViewMode('suggestions');
+									if (suggestedRecipes.length === 0) {
+										handleGetSuggestions();
+									}
+								}}
+								className="text-sm text-charcoal-muted hover:text-primary transition-colors flex items-center gap-1"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									strokeWidth={1.5}
+									stroke="currentColor"
+									className="w-4 h-4"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
+									/>
+								</svg>
+								Get AI suggestions
+							</button>
+						</div>
 					</div>
 
 					{/* Grocery List */}
@@ -303,14 +385,100 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 						No meals planned yet
 					</h2>
 					<p className="text-charcoal-muted mb-6">
-						Tell us what you&apos;re in the mood for and we&apos;ll suggest some recipes.
+						Choose specific meals or let AI suggest recipes for you.
 					</p>
-					<button
-						onClick={() => setViewMode('suggestions')}
-						className="btn-primary-filled"
-					>
-						Plan Your Week
-					</button>
+					<div className="flex flex-col sm:flex-row gap-3 justify-center">
+						<button
+							onClick={() => {
+								setViewMode('choose');
+								loadLikedRecipesForChoosing();
+							}}
+							className="btn-primary"
+						>
+							Choose Your Own
+						</button>
+						<button
+							onClick={() => setViewMode('suggestions')}
+							className="btn-primary-filled"
+						>
+							Get AI Suggestions
+						</button>
+					</div>
+				</div>
+			)}
+
+			{/* Choose Your Own View */}
+			{viewMode === 'choose' && (
+				<div className="space-y-8">
+					<div className="bg-white rounded-xl p-6">
+						<h2 className="text-lg font-semibold text-charcoal mb-2">
+							Choose Your Own Meals
+						</h2>
+						<p className="text-sm text-charcoal-muted">
+							Select specific recipes you want to cook this week. You can then get AI suggestions to fill in the rest.
+						</p>
+					</div>
+
+					{isLoadingLikedRecipes && (
+						<div className="flex items-center justify-center py-12">
+							<div className="text-charcoal-muted">Loading your recipes...</div>
+						</div>
+					)}
+
+					{!isLoadingLikedRecipes && allLikedRecipes.length === 0 && (
+						<div className="text-center py-12 text-charcoal-muted">
+							No liked recipes found. Browse recipes and add some favorites first.
+						</div>
+					)}
+
+					{!isLoadingLikedRecipes && allLikedRecipes.length > 0 && (
+						<div>
+							<div className="flex items-center justify-between mb-4">
+								<h2 className="section-header">
+									Your Recipes ({manuallyChosen.size} selected)
+								</h2>
+								<div className="flex gap-2">
+									<button
+										onClick={handleProceedToSuggestions}
+										className="btn-primary"
+									>
+										{manuallyChosen.size > 0
+											? `Continue with ${manuallyChosen.size} + AI Suggestions`
+											: 'Skip to AI Suggestions'
+										}
+									</button>
+									{manuallyChosen.size > 0 && (
+										<button
+											onClick={handleSavePlan}
+											className="btn-primary-filled"
+										>
+											Save Plan ({manuallyChosen.size} meals)
+										</button>
+									)}
+								</div>
+							</div>
+							<div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+								{allLikedRecipes.map((recipe) => (
+									<RecipeCard
+										key={recipe.url}
+										recipe={recipe}
+										isLiked={likedUrls.has(recipe.url)}
+										onLikeToggle={() => handleLikeToggle(recipe.url)}
+										showLikeButton={true}
+										showSelectButton={true}
+										isSelected={manuallyChosen.has(recipe.url)}
+										onSelect={() => toggleManuallyChosen(recipe.url)}
+										onClick={() =>
+											setExpandedRecipeUrl(
+												expandedRecipeUrl === recipe.url ? null : recipe.url
+											)
+										}
+										isExpanded={expandedRecipeUrl === recipe.url}
+									/>
+								))}
+							</div>
+						</div>
+					)}
 				</div>
 			)}
 

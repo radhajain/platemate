@@ -11,6 +11,7 @@ export default function LoginForm() {
 	});
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
+	const [isLoading, setIsLoading] = useState(false);
 
 	const validateForm = (): boolean => {
 		let isValid = true;
@@ -33,49 +34,116 @@ export default function LoginForm() {
 		event.preventDefault();
 		const validationPassed = validateForm();
 		if (!validationPassed) return;
+		setIsLoading(true);
 		await login(email, password);
+		setIsLoading(false);
 	};
 
 	const handleSignup = async (event: React.MouseEvent) => {
 		event.preventDefault();
 		const validationPassed = validateForm();
 		if (!validationPassed) return;
+		setIsLoading(true);
 		await signup(email, password);
+		setIsLoading(false);
 	};
 
 	return (
-		<form onSubmit={(event) => handleLogin(event)}>
-			<h1>Login Page</h1>
-			<label htmlFor="email">Email:</label>
-			<input
-				id="email"
-				name="email"
-				type="email"
-				value={email}
-				onChange={(e) => setEmail(e.target.value)}
-				required
-			/>
-			{errors.email && <p style={{ color: 'red' }}>{errors.email}</p>}
+		<div className="flex items-center justify-center bg-cream px-4 -my-8 min-h-[calc(100vh-8rem)]">
+			<div className="w-full max-w-md">
+				<div className="bg-white rounded-2xl shadow-lg p-8">
+					<div className="text-center mb-8">
+						<h1 className="text-2xl font-semibold text-charcoal mb-2">
+							Welcome Back
+						</h1>
+						<p className="text-charcoal-muted text-sm">
+							Sign in to continue to your meal planner
+						</p>
+					</div>
 
-			<label htmlFor="password">Password:</label>
-			<input
-				id="password"
-				name="password"
-				type="password"
-				value={password}
-				onChange={(e) => setPassword(e.target.value)}
-				required
-			/>
-			{errors.password && <p style={{ color: 'red' }}>{errors.password}</p>}
+					<form onSubmit={(event) => handleLogin(event)} className="space-y-5">
+						<div>
+							<label
+								htmlFor="email"
+								className="block text-sm font-medium text-charcoal mb-1.5"
+							>
+								Email
+							</label>
+							<input
+								id="email"
+								name="email"
+								type="email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								required
+								className="w-full px-4 py-3 rounded-lg border border-cream-dark bg-cream-light
+									text-charcoal placeholder-charcoal-muted
+									focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+									transition-all duration-200"
+								placeholder="you@example.com"
+							/>
+							{errors.email && (
+								<p className="mt-1.5 text-sm text-red-500">{errors.email}</p>
+							)}
+						</div>
 
-			<button type="submit">Log in</button>
+						<div>
+							<label
+								htmlFor="password"
+								className="block text-sm font-medium text-charcoal mb-1.5"
+							>
+								Password
+							</label>
+							<input
+								id="password"
+								name="password"
+								type="password"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								required
+								className="w-full px-4 py-3 rounded-lg border border-cream-dark bg-cream-light
+									text-charcoal placeholder-charcoal-muted
+									focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+									transition-all duration-200"
+								placeholder="Enter your password"
+							/>
+							{errors.password && (
+								<p className="mt-1.5 text-sm text-red-500">{errors.password}</p>
+							)}
+						</div>
 
-			<button type="button" onClick={(event) => handleSignup(event)}>
-				Sign up
-			</button>
+						{errors.general && (
+							<p className="text-sm text-red-500 text-center">
+								{errors.general}
+							</p>
+						)}
 
-			{errors.general && <p style={{ color: 'red' }}>{errors.general}</p>}
-		</form>
+						<div className="space-y-3 pt-2">
+							<button
+								type="submit"
+								disabled={isLoading}
+								className="w-full btn-primary-filled py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								{isLoading ? 'Signing in...' : 'Log in'}
+							</button>
+
+							<button
+								type="button"
+								onClick={(event) => handleSignup(event)}
+								disabled={isLoading}
+								className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								{isLoading ? 'Creating account...' : 'Sign up'}
+							</button>
+						</div>
+					</form>
+				</div>
+
+				<p className="text-center text-charcoal-muted text-sm mt-6">
+					By continuing, you agree to our Terms of Service
+				</p>
+			</div>
+		</div>
 	);
 }
 

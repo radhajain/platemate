@@ -104,6 +104,27 @@ export async function getUserLikedRecipeUrls(
 	return new Set(data.map((r) => r.recipe_url).filter(Boolean) as string[]);
 }
 
+export async function getUserLikedRecipes(userId: string): Promise<Recipe[]> {
+	const supabase = await createClient();
+
+	// Get liked recipe URLs
+	const likedUrls = await getUserLikedRecipeUrls(userId);
+	if (likedUrls.size === 0) return [];
+
+	// Get full recipe objects
+	const { data: recipes, error } = await supabase
+		.from('recipes')
+		.select('*')
+		.in('url', Array.from(likedUrls));
+
+	if (error) {
+		console.error('Error fetching liked recipes:', error);
+		return [];
+	}
+
+	return recipes || [];
+}
+
 export async function toggleLikedRecipe(
 	userId: string,
 	recipeUrl: string

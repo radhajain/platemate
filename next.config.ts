@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
 			},
 			{
 				protocol: 'https',
+				hostname: 'www.loveandlemons.com',
+				pathname: '/wp-content/**',
+			},
+			{
+				protocol: 'https',
 				hostname: 'static01.nyt.com',
 				pathname: '/images/**',
 			},
