@@ -10,12 +10,26 @@ import {
 } from '@/services/supabase/api';
 import { User } from '@supabase/supabase-js';
 import { format, startOfWeek } from 'date-fns';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Recipe } from '../../../database.types';
 import { RecipeCard, RecipeDetailPanel } from './Card';
 import { GroceryList } from './GroceryList';
 
-type ViewMode = 'plan' | 'choose' | 'suggestions' | 'browse';
+type ViewMode = 'plan' | 'wizard';
+type WizardStep = 1 | 2 | 3 | 4;
+
+const MOOD_TAGS = [
+	'Quick weeknight meals',
+	'Comfort food',
+	'Healthy & light',
+	'Meal prep friendly',
+	'High protein',
+	'Veggie-focused',
+	'Soups & stews',
+	'One-pot meals',
+	'Budget-friendly',
+	'Date night',
+];
 
 interface MealPlanDashboardProps {
 	user: User;
@@ -26,24 +40,28 @@ interface MealPlanDashboardProps {
 function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanDashboardProps) {
 	const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
 
-	// State
+	// Core state
 	const [weeklyRecipes, setWeeklyRecipes] = useState<Recipe[]>(initialRecipes);
-	const [suggestedRecipes, setSuggestedRecipes] = useState<Recipe[]>([]);
-	const [selectedForPlan, setSelectedForPlan] = useState<Set<string>>(new Set());
-	const [likedUrls, setLikedUrls] = useState<Set<string>>(new Set());
 	const [viewMode, setViewMode] = useState<ViewMode>(
-		initialRecipes.length > 0 ? 'plan' : 'suggestions'
+		initialRecipes.length > 0 ? 'plan' : 'wizard'
 	);
-	const [userRequest, setUserRequest] = useState('');
-	const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-	const [suggestionReasoning, setSuggestionReasoning] = useState('');
-	const [allLikedRecipes, setAllLikedRecipes] = useState<Recipe[]>([]);
-	const [manuallyChosen, setManuallyChosen] = useState<Set<string>>(new Set());
-	const [isLoadingLikedRecipes, setIsLoadingLikedRecipes] = useState(false);
+	const [likedUrls, setLikedUrls] = useState<Set<string>>(new Set());
 	const [expandedRecipeUrl, setExpandedRecipeUrl] = useState<string | null>(
-		// Auto-expand first recipe if we have recipes
 		initialRecipes.length > 0 ? initialRecipes[0].url : null
 	);
+
+	// Wizard state
+	const [wizardStep, setWizardStep] = useState<WizardStep>(1);
+	const [hasSpecificDishes, setHasSpecificDishes] = useState<boolean | null>(null);
+	const [allLikedRecipes, setAllLikedRecipes] = useState<Recipe[]>([]);
+	const [isLoadingLikedRecipes, setIsLoadingLikedRecipes] = useState(false);
+	const [manuallyChosen, setManuallyChosen] = useState<Set<string>>(new Set());
+	const [searchQuery, setSearchQuery] = useState('');
+	const [selectedMoodTags, setSelectedMoodTags] = useState<Set<string>>(new Set());
+	const [suggestedRecipes, setSuggestedRecipes] = useState<Recipe[]>([]);
+	const [selectedForPlan, setSelectedForPlan] = useState<Set<string>>(new Set());
+	const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+	const [suggestionReasoning, setSuggestionReasoning] = useState('');
 
 	// Load liked URLs
 	useEffect(() => {
@@ -54,14 +72,25 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		loadLikedUrls();
 	}, [user.id]);
 
-	// Load all liked recipes for "Choose Your Own" mode
+	// Load all liked recipes when entering wizard
 	const loadLikedRecipesForChoosing = useCallback(async () => {
-		if (allLikedRecipes.length > 0) return; // Already loaded
+		if (allLikedRecipes.length > 0) return;
 		setIsLoadingLikedRecipes(true);
 		const recipes = await getUserLikedRecipes(user.id);
 		setAllLikedRecipes(recipes);
 		setIsLoadingLikedRecipes(false);
 	}, [user.id, allLikedRecipes.length]);
+
+	// Filter recipes by search query
+	const filteredRecipes = useMemo(() => {
+		if (!searchQuery.trim()) return allLikedRecipes;
+		const query = searchQuery.toLowerCase();
+		return allLikedRecipes.filter(
+			(recipe) =>
+				recipe.name?.toLowerCase().includes(query) ||
+				recipe.ingredients?.some((ing) => ing.toLowerCase().includes(query))
+		);
+	}, [allLikedRecipes, searchQuery]);
 
 	// Toggle manually chosen recipe
 	const toggleManuallyChosen = useCallback((url: string) => {
@@ -76,25 +105,39 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		});
 	}, []);
 
+	// Toggle mood tag
+	const toggleMoodTag = useCallback((tag: string) => {
+		setSelectedMoodTags((prev) => {
+			const newSet = new Set(prev);
+			if (newSet.has(tag)) {
+				newSet.delete(tag);
+			} else {
+				newSet.add(tag);
+			}
+			return newSet;
+		});
+	}, []);
+
 	// Handle getting suggestions
 	const handleGetSuggestions = useCallback(async () => {
 		setIsLoadingSuggestions(true);
-		const result = await getSuggestedRecipes(user.id, userRequest, 10);
+		const moodString = Array.from(selectedMoodTags).join(', ');
+		const result = await getSuggestedRecipes(user.id, moodString, 10);
 		if (result) {
-			// Deduplicate recipes by URL
+			// Deduplicate and exclude manually chosen recipes
 			const uniqueRecipes = result.recipes.filter(
-				(recipe, index, self) => self.findIndex((r) => r.url === recipe.url) === index
+				(recipe, index, self) =>
+					self.findIndex((r) => r.url === recipe.url) === index &&
+					!manuallyChosen.has(recipe.url)
 			);
 			setSuggestedRecipes(uniqueRecipes);
 			setSuggestionReasoning(result.reasoning);
-			// Clear any previous selections when getting new suggestions
 			setSelectedForPlan(new Set());
 		}
 		setIsLoadingSuggestions(false);
-		setViewMode('suggestions');
-	}, [user.id, userRequest]);
+	}, [user.id, selectedMoodTags, manuallyChosen]);
 
-	// Handle toggling a recipe in the selected plan
+	// Toggle selected for plan
 	const toggleSelectedForPlan = useCallback((url: string) => {
 		setSelectedForPlan((prev) => {
 			const newSet = new Set(prev);
@@ -109,14 +152,13 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 
 	// Handle saving the weekly plan
 	const handleSavePlan = useCallback(async () => {
-		// Combine manually chosen recipes with AI-selected ones
 		const allSelectedUrls = new Set([...manuallyChosen, ...selectedForPlan]);
 		const urls = Array.from(allSelectedUrls);
 		await saveWeeklyPlan(user.id, urls, weekStart);
-		// Update weekly recipes from selected (combine from both sources)
+
+		// Combine recipes from both sources
 		const chosenRecipes = allLikedRecipes.filter((r) => manuallyChosen.has(r.url));
 		const aiSelectedRecipes = suggestedRecipes.filter((r) => selectedForPlan.has(r.url));
-		// Deduplicate
 		const allRecipes = [...chosenRecipes];
 		for (const r of aiSelectedRecipes) {
 			if (!allRecipes.some((existing) => existing.url === r.url)) {
@@ -125,19 +167,8 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		}
 		setWeeklyRecipes(allRecipes);
 		setViewMode('plan');
-		// Reset selections
-		setManuallyChosen(new Set());
-		setSelectedForPlan(new Set());
+		resetWizard();
 	}, [selectedForPlan, manuallyChosen, suggestedRecipes, allLikedRecipes, user.id, weekStart]);
-
-	// Handle proceeding from "choose your own" to AI suggestions
-	const handleProceedToSuggestions = useCallback(() => {
-		setViewMode('suggestions');
-		// Pre-select manually chosen recipes in the suggestions view
-		if (manuallyChosen.size > 0) {
-			setSelectedForPlan(new Set(manuallyChosen));
-		}
-	}, [manuallyChosen]);
 
 	// Handle removing a recipe from the plan
 	const handleRemoveFromPlan = useCallback(
@@ -165,6 +196,25 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		[user.id]
 	);
 
+	// Reset wizard state
+	const resetWizard = useCallback(() => {
+		setWizardStep(1);
+		setHasSpecificDishes(null);
+		setManuallyChosen(new Set());
+		setSearchQuery('');
+		setSelectedMoodTags(new Set());
+		setSuggestedRecipes([]);
+		setSelectedForPlan(new Set());
+		setSuggestionReasoning('');
+	}, []);
+
+	// Start wizard
+	const startWizard = useCallback(() => {
+		resetWizard();
+		setViewMode('wizard');
+		loadLikedRecipesForChoosing();
+	}, [resetWizard, loadLikedRecipesForChoosing]);
+
 	// Calculate row for expanded recipe
 	const getExpandedRowIndex = (recipes: Recipe[], url: string, columns: number) => {
 		const index = recipes.findIndex((r) => r.url === url);
@@ -179,9 +229,17 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 			showRemove?: boolean;
 			showSelect?: boolean;
 			columns?: number;
+			selectedSet?: Set<string>;
+			onSelect?: (url: string) => void;
 		} = {}
 	) => {
-		const { showRemove = false, showSelect = false, columns = 4 } = options;
+		const {
+			showRemove = false,
+			showSelect = false,
+			columns = 4,
+			selectedSet = selectedForPlan,
+			onSelect = toggleSelectedForPlan,
+		} = options;
 		const rows: Recipe[][] = [];
 		for (let i = 0; i < recipes.length; i += columns) {
 			rows.push(recipes.slice(i, i + columns));
@@ -210,8 +268,8 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 									onLikeToggle={() => handleLikeToggle(recipe.url)}
 									showLikeButton={true}
 									showSelectButton={showSelect}
-									isSelected={selectedForPlan.has(recipe.url)}
-									onSelect={showSelect ? () => toggleSelectedForPlan(recipe.url) : undefined}
+									isSelected={selectedSet.has(recipe.url)}
+									onSelect={showSelect ? () => onSelect(recipe.url) : undefined}
 									showRemoveButton={showRemove}
 									onRemove={showRemove ? () => handleRemoveFromPlan(recipe.url) : undefined}
 									onClick={() =>
@@ -222,9 +280,8 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 									isExpanded={expandedRecipeUrl === recipe.url}
 								/>
 							))}
-							</div>
+						</div>
 
-						{/* Expanded detail panel */}
 						{expandedRecipe && expandedRowIndex === rowIndex && (
 							<div className="mt-6 animate-in slide-in-from-top-2 duration-200">
 								<RecipeDetailPanel
@@ -241,6 +298,21 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		);
 	};
 
+	// Get selected recipes for final review
+	const getSelectedRecipes = useCallback(() => {
+		const chosen = allLikedRecipes.filter((r) => manuallyChosen.has(r.url));
+		const aiSelected = suggestedRecipes.filter((r) => selectedForPlan.has(r.url));
+		const all = [...chosen];
+		for (const r of aiSelected) {
+			if (!all.some((existing) => existing.url === r.url)) {
+				all.push(r);
+			}
+		}
+		return all;
+	}, [allLikedRecipes, manuallyChosen, suggestedRecipes, selectedForPlan]);
+
+	const totalSelected = manuallyChosen.size + selectedForPlan.size;
+
 	return (
 		<div className="flex flex-col gap-8">
 			{/* Header */}
@@ -254,37 +326,21 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 					</p>
 				</div>
 				<div className="flex gap-2">
-					{viewMode !== 'plan' && weeklyRecipes.length > 0 && (
+					{viewMode === 'wizard' && (
 						<button
-							onClick={() => setViewMode('plan')}
+							onClick={() => {
+								setViewMode('plan');
+								resetWizard();
+							}}
 							className="btn-primary"
 						>
-							View Current Plan
+							Cancel
 						</button>
 					)}
-					{viewMode === 'plan' && weeklyRecipes.length > 0 && (
-						<>
-							<button
-								onClick={() => {
-									setViewMode('choose');
-									loadLikedRecipesForChoosing();
-								}}
-								className="btn-primary"
-							>
-								Choose Your Own
-							</button>
-							<button
-								onClick={() => {
-									setViewMode('suggestions');
-									if (suggestedRecipes.length === 0) {
-										handleGetSuggestions();
-									}
-								}}
-								className="btn-primary-filled"
-							>
-								Get AI Suggestions
-							</button>
-						</>
+					{viewMode === 'plan' && (
+						<button onClick={startWizard} className="btn-primary-filled">
+							{weeklyRecipes.length > 0 ? 'Modify Plan' : 'Create Plan'}
+						</button>
 					)}
 				</div>
 			</div>
@@ -292,66 +348,34 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 			{/* Current Plan View */}
 			{viewMode === 'plan' && weeklyRecipes.length > 0 && (
 				<div className="grid lg:grid-cols-3 gap-8">
-					{/* Recipes */}
 					<div className="lg:col-span-2">
 						<h2 className="section-header mb-4">This Week&apos;s Meals</h2>
 						{renderRecipeGrid(weeklyRecipes, {
 							showRemove: true,
 							columns: 3,
 						})}
-						<div className="mt-4 flex gap-4">
-							<button
-								onClick={() => {
-									setViewMode('choose');
-									loadLikedRecipesForChoosing();
-								}}
-								className="text-sm text-charcoal-muted hover:text-primary transition-colors flex items-center gap-1"
+						<button
+							onClick={startWizard}
+							className="mt-4 text-sm text-charcoal-muted hover:text-primary transition-colors flex items-center gap-1"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								strokeWidth={1.5}
+								stroke="currentColor"
+								className="w-4 h-4"
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									strokeWidth={1.5}
-									stroke="currentColor"
-									className="w-4 h-4"
-								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										d="M12 4.5v15m7.5-7.5h-15"
-									/>
-								</svg>
-								Choose your own
-							</button>
-							<button
-								onClick={() => {
-									setViewMode('suggestions');
-									if (suggestedRecipes.length === 0) {
-										handleGetSuggestions();
-									}
-								}}
-								className="text-sm text-charcoal-muted hover:text-primary transition-colors flex items-center gap-1"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									strokeWidth={1.5}
-									stroke="currentColor"
-									className="w-4 h-4"
-								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
-									/>
-								</svg>
-								Get AI suggestions
-							</button>
-						</div>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M12 4.5v15m7.5-7.5h-15"
+								/>
+							</svg>
+							Add more recipes
+						</button>
 					</div>
 
-					{/* Grocery List */}
 					<div>
 						<h2 className="section-header mb-4">Shopping List</h2>
 						<GroceryList recipes={weeklyRecipes} weeklyStaples={weeklyStaples} />
@@ -385,193 +409,342 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 						No meals planned yet
 					</h2>
 					<p className="text-charcoal-muted mb-6">
-						Choose specific meals or let AI suggest recipes for you.
+						Let&apos;s plan your meals for the week.
 					</p>
-					<div className="flex flex-col sm:flex-row gap-3 justify-center">
-						<button
-							onClick={() => {
-								setViewMode('choose');
-								loadLikedRecipesForChoosing();
-							}}
-							className="btn-primary"
-						>
-							Choose Your Own
-						</button>
-						<button
-							onClick={() => setViewMode('suggestions')}
-							className="btn-primary-filled"
-						>
-							Get AI Suggestions
-						</button>
-					</div>
+					<button onClick={startWizard} className="btn-primary-filled">
+						Start Planning
+					</button>
 				</div>
 			)}
 
-			{/* Choose Your Own View */}
-			{viewMode === 'choose' && (
-				<div className="space-y-8">
-					<div className="bg-white rounded-xl p-6">
-						<h2 className="text-lg font-semibold text-charcoal mb-2">
-							Choose Your Own Meals
-						</h2>
-						<p className="text-sm text-charcoal-muted">
-							Select specific recipes you want to cook this week. You can then get AI suggestions to fill in the rest.
-						</p>
-					</div>
-
-					{isLoadingLikedRecipes && (
-						<div className="flex items-center justify-center py-12">
-							<div className="text-charcoal-muted">Loading your recipes...</div>
+			{/* Wizard */}
+			{viewMode === 'wizard' && (
+				<div className="space-y-6">
+					{/* Progress bar */}
+					<div className="bg-white rounded-xl p-4">
+						<div className="flex items-center justify-between mb-2">
+							<span className="text-sm text-charcoal-muted">Step {wizardStep} of 4</span>
+							<span className="text-sm text-charcoal-muted">
+								{totalSelected} recipe{totalSelected !== 1 ? 's' : ''} selected
+							</span>
 						</div>
-					)}
-
-					{!isLoadingLikedRecipes && allLikedRecipes.length === 0 && (
-						<div className="text-center py-12 text-charcoal-muted">
-							No liked recipes found. Browse recipes and add some favorites first.
-						</div>
-					)}
-
-					{!isLoadingLikedRecipes && allLikedRecipes.length > 0 && (
-						<div>
-							<div className="flex items-center justify-between mb-4">
-								<h2 className="section-header">
-									Your Recipes ({manuallyChosen.size} selected)
-								</h2>
-								<div className="flex gap-2">
-									<button
-										onClick={handleProceedToSuggestions}
-										className="btn-primary"
-									>
-										{manuallyChosen.size > 0
-											? `Continue with ${manuallyChosen.size} + AI Suggestions`
-											: 'Skip to AI Suggestions'
-										}
-									</button>
-									{manuallyChosen.size > 0 && (
-										<button
-											onClick={handleSavePlan}
-											className="btn-primary-filled"
-										>
-											Save Plan ({manuallyChosen.size} meals)
-										</button>
-									)}
-								</div>
-							</div>
-							<div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-								{allLikedRecipes.map((recipe) => (
-									<RecipeCard
-										key={recipe.url}
-										recipe={recipe}
-										isLiked={likedUrls.has(recipe.url)}
-										onLikeToggle={() => handleLikeToggle(recipe.url)}
-										showLikeButton={true}
-										showSelectButton={true}
-										isSelected={manuallyChosen.has(recipe.url)}
-										onSelect={() => toggleManuallyChosen(recipe.url)}
-										onClick={() =>
-											setExpandedRecipeUrl(
-												expandedRecipeUrl === recipe.url ? null : recipe.url
-											)
-										}
-										isExpanded={expandedRecipeUrl === recipe.url}
-									/>
-								))}
-							</div>
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* Suggestions View */}
-			{viewMode === 'suggestions' && (
-				<div className="space-y-8">
-					{/* Request Input */}
-					<div className="bg-white rounded-xl p-6">
-						<h2 className="text-lg font-semibold text-charcoal mb-2">
-							What are you in the mood for this week?
-						</h2>
-						<p className="text-sm text-charcoal-muted mb-4">
-							Tell us your preferences and we&apos;ll suggest recipes that match.
-						</p>
-						<div className="flex flex-col sm:flex-row gap-3">
-							<input
-								type="text"
-								value={userRequest}
-								onChange={(e) => setUserRequest(e.target.value)}
-								placeholder="e.g., Soups, high protein, veggie-focused, quick meals..."
-								className="flex-1 px-4 py-3 rounded-lg border border-cream-dark focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
-								onKeyDown={(e) => {
-									if (e.key === 'Enter') {
-										handleGetSuggestions();
-									}
-								}}
+						<div className="h-2 bg-cream rounded-full overflow-hidden">
+							<div
+								className="h-full bg-primary transition-all duration-300"
+								style={{ width: `${(wizardStep / 4) * 100}%` }}
 							/>
-							<button
-								onClick={handleGetSuggestions}
-								disabled={isLoadingSuggestions}
-								className="btn-primary-filled whitespace-nowrap disabled:opacity-50"
-							>
-								{isLoadingSuggestions ? 'Loading...' : 'Get Suggestions'}
-							</button>
-						</div>
-						<div className="flex flex-wrap gap-2 mt-3">
-							{['Quick weeknight meals', 'Comfort food', 'Healthy & light', 'Meal prep friendly'].map(
-								(suggestion) => (
-									<button
-										key={suggestion}
-										onClick={() => {
-											setUserRequest(suggestion);
-										}}
-										className="px-3 py-1 text-sm rounded-full bg-cream hover:bg-cream-dark text-charcoal-muted transition-colors"
-									>
-										{suggestion}
-									</button>
-								)
-							)}
 						</div>
 					</div>
 
-					{/* Suggestions Grid */}
-					{suggestedRecipes.length > 0 && (
-						<div>
-							<div className="flex items-center justify-between mb-4">
-								<div>
-									<h2 className="section-header">
-										Suggested Recipes ({selectedForPlan.size} selected)
-									</h2>
-									{suggestionReasoning && (
-										<p className="text-sm text-charcoal-muted mt-1">
-											{suggestionReasoning}
-										</p>
-									)}
-								</div>
+					{/* Step 1: Do you have specific dishes? */}
+					{wizardStep === 1 && (
+						<div className="bg-white rounded-xl p-8 text-center">
+							<h2 className="text-xl font-semibold text-charcoal mb-2">
+								Do you have specific dishes in mind?
+							</h2>
+							<p className="text-charcoal-muted mb-8">
+								Select recipes you know you want to cook this week, or skip to get AI suggestions.
+							</p>
+							<div className="flex flex-col sm:flex-row gap-4 justify-center">
 								<button
-									onClick={handleSavePlan}
-									disabled={selectedForPlan.size === 0}
-									className="btn-primary-filled disabled:opacity-50 disabled:cursor-not-allowed"
+									onClick={() => {
+										setHasSpecificDishes(true);
+										setWizardStep(2);
+									}}
+									className="btn-primary px-8 py-4"
 								>
-									Save Plan ({selectedForPlan.size} meals)
+									Yes, let me choose
+								</button>
+								<button
+									onClick={() => {
+										setHasSpecificDishes(false);
+										setWizardStep(3);
+									}}
+									className="btn-primary-filled px-8 py-4"
+								>
+									No, suggest recipes for me
 								</button>
 							</div>
-							{renderRecipeGrid(suggestedRecipes, {
-								showSelect: true,
-								columns: 4,
-							})}
 						</div>
 					)}
 
-					{/* Loading state */}
-					{isLoadingSuggestions && (
-						<div className="flex items-center justify-center py-12">
-							<div className="text-charcoal-muted">Finding the perfect recipes...</div>
+					{/* Step 2: Choose Your Own */}
+					{wizardStep === 2 && (
+						<div className="space-y-6">
+							<div className="bg-white rounded-xl p-6">
+								<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+									<div>
+										<h2 className="text-lg font-semibold text-charcoal">
+											Choose Your Own Meals
+										</h2>
+										<p className="text-sm text-charcoal-muted">
+											Select recipes from your favorites ({manuallyChosen.size} selected)
+										</p>
+									</div>
+									<div className="flex gap-2">
+										<button
+											onClick={() => setWizardStep(1)}
+											className="btn-primary"
+										>
+											Back
+										</button>
+										<button
+											onClick={() => setWizardStep(3)}
+											className="btn-primary-filled"
+										>
+											{manuallyChosen.size > 0 ? 'Continue' : 'Skip'}
+										</button>
+									</div>
+								</div>
+
+								{/* Search bar */}
+								<div className="relative">
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+										strokeWidth={1.5}
+										stroke="currentColor"
+										className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-muted"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+										/>
+									</svg>
+									<input
+										type="text"
+										value={searchQuery}
+										onChange={(e) => setSearchQuery(e.target.value)}
+										placeholder="Search recipes by name or ingredient..."
+										className="w-full pl-10 pr-4 py-3 rounded-lg border border-cream-dark focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+									/>
+								</div>
+							</div>
+
+							{isLoadingLikedRecipes && (
+								<div className="flex items-center justify-center py-12">
+									<div className="text-charcoal-muted">Loading your recipes...</div>
+								</div>
+							)}
+
+							{!isLoadingLikedRecipes && allLikedRecipes.length === 0 && (
+								<div className="text-center py-12 text-charcoal-muted">
+									No liked recipes found. Browse recipes and add some favorites first.
+								</div>
+							)}
+
+							{!isLoadingLikedRecipes && filteredRecipes.length > 0 && (
+								<div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+									{filteredRecipes.map((recipe) => (
+										<RecipeCard
+											key={recipe.url}
+											recipe={recipe}
+											isLiked={likedUrls.has(recipe.url)}
+											onLikeToggle={() => handleLikeToggle(recipe.url)}
+											showLikeButton={true}
+											showSelectButton={true}
+											isSelected={manuallyChosen.has(recipe.url)}
+											onSelect={() => toggleManuallyChosen(recipe.url)}
+											onClick={() =>
+												setExpandedRecipeUrl(
+													expandedRecipeUrl === recipe.url ? null : recipe.url
+												)
+											}
+											isExpanded={expandedRecipeUrl === recipe.url}
+										/>
+									))}
+								</div>
+							)}
+
+							{!isLoadingLikedRecipes && filteredRecipes.length === 0 && allLikedRecipes.length > 0 && (
+								<div className="text-center py-12 text-charcoal-muted">
+									No recipes match your search.
+								</div>
+							)}
 						</div>
 					)}
 
-					{/* No suggestions yet */}
-					{!isLoadingSuggestions && suggestedRecipes.length === 0 && (
-						<div className="text-center py-12 text-charcoal-muted">
-							Enter your preferences above and click &quot;Get Suggestions&quot; to see
-							recipe recommendations.
+					{/* Step 3: What are you in the mood for? */}
+					{wizardStep === 3 && (
+						<div className="space-y-6">
+							<div className="bg-white rounded-xl p-6">
+								<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+									<div>
+										<h2 className="text-lg font-semibold text-charcoal">
+											What are you in the mood for?
+										</h2>
+										<p className="text-sm text-charcoal-muted">
+											Select all that apply - we&apos;ll suggest recipes that match
+										</p>
+									</div>
+									<div className="flex gap-2">
+										<button
+											onClick={() => setWizardStep(hasSpecificDishes ? 2 : 1)}
+											className="btn-primary"
+										>
+											Back
+										</button>
+										<button
+											onClick={() => {
+												handleGetSuggestions();
+												setWizardStep(4);
+											}}
+											className="btn-primary-filled"
+										>
+											Get Suggestions
+										</button>
+									</div>
+								</div>
+
+								<div className="flex flex-wrap gap-3">
+									{MOOD_TAGS.map((tag) => (
+										<button
+											key={tag}
+											onClick={() => toggleMoodTag(tag)}
+											className={`px-4 py-2 rounded-full border-2 transition-all ${
+												selectedMoodTags.has(tag)
+													? 'border-primary bg-primary/10 text-primary'
+													: 'border-cream-dark hover:border-primary text-charcoal-muted'
+											}`}
+										>
+											{tag}
+										</button>
+									))}
+								</div>
+
+								{manuallyChosen.size > 0 && (
+									<div className="mt-6 pt-6 border-t border-cream-dark">
+										<p className="text-sm text-charcoal-muted mb-3">
+											Already selected ({manuallyChosen.size}):
+										</p>
+										<div className="flex flex-wrap gap-2">
+											{allLikedRecipes
+												.filter((r) => manuallyChosen.has(r.url))
+												.map((recipe) => (
+													<span
+														key={recipe.url}
+														className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm"
+													>
+														{recipe.name}
+														<button
+															onClick={() => toggleManuallyChosen(recipe.url)}
+															className="hover:bg-primary/20 rounded-full p-0.5"
+														>
+															<svg
+																xmlns="http://www.w3.org/2000/svg"
+																viewBox="0 0 20 20"
+																fill="currentColor"
+																className="w-3 h-3"
+															>
+																<path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+															</svg>
+														</button>
+													</span>
+												))}
+										</div>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+
+					{/* Step 4: Suggestions & Final Review */}
+					{wizardStep === 4 && (
+						<div className="space-y-6">
+							<div className="bg-white rounded-xl p-6">
+								<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+									<div>
+										<h2 className="text-lg font-semibold text-charcoal">
+											Your Meal Plan
+										</h2>
+										<p className="text-sm text-charcoal-muted">
+											{totalSelected} recipe{totalSelected !== 1 ? 's' : ''} selected
+										</p>
+									</div>
+									<div className="flex gap-2">
+										<button
+											onClick={() => setWizardStep(3)}
+											className="btn-primary"
+										>
+											Back
+										</button>
+										<button
+											onClick={handleSavePlan}
+											disabled={totalSelected === 0}
+											className="btn-primary-filled disabled:opacity-50 disabled:cursor-not-allowed"
+										>
+											Save Plan
+										</button>
+									</div>
+								</div>
+							</div>
+
+							{/* Manually chosen recipes */}
+							{manuallyChosen.size > 0 && (
+								<div>
+									<h3 className="section-header mb-4">
+										Your Picks ({manuallyChosen.size})
+									</h3>
+									<div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+										{allLikedRecipes
+											.filter((r) => manuallyChosen.has(r.url))
+											.map((recipe) => (
+												<RecipeCard
+													key={recipe.url}
+													recipe={recipe}
+													isLiked={likedUrls.has(recipe.url)}
+													onLikeToggle={() => handleLikeToggle(recipe.url)}
+													showLikeButton={true}
+													showSelectButton={true}
+													isSelected={true}
+													onSelect={() => toggleManuallyChosen(recipe.url)}
+												/>
+											))}
+									</div>
+								</div>
+							)}
+
+							{/* AI Suggestions */}
+							{isLoadingSuggestions && (
+								<div className="flex items-center justify-center py-12">
+									<div className="text-charcoal-muted">Finding the perfect recipes...</div>
+								</div>
+							)}
+
+							{!isLoadingSuggestions && suggestedRecipes.length > 0 && (
+								<div>
+									<div className="mb-4">
+										<h3 className="section-header">
+											AI Suggestions ({selectedForPlan.size} selected)
+										</h3>
+										{suggestionReasoning && (
+											<p className="text-sm text-charcoal-muted mt-1">
+												{suggestionReasoning}
+											</p>
+										)}
+									</div>
+									{renderRecipeGrid(suggestedRecipes, {
+										showSelect: true,
+										columns: 4,
+									})}
+								</div>
+							)}
+
+							{!isLoadingSuggestions && suggestedRecipes.length === 0 && manuallyChosen.size === 0 && (
+								<div className="text-center py-12 text-charcoal-muted">
+									No suggestions available. Try selecting different mood tags.
+								</div>
+							)}
+
+							{/* Final grocery list preview */}
+							{totalSelected > 0 && (
+								<div className="bg-cream-light rounded-xl p-6">
+									<h3 className="section-header mb-4">Grocery List Preview</h3>
+									<GroceryList recipes={getSelectedRecipes()} weeklyStaples={weeklyStaples} />
+								</div>
+							)}
 						</div>
 					)}
 				</div>
