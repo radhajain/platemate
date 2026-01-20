@@ -1,3 +1,4 @@
+import { getUserProfile } from '@/services/supabase/api';
 import { getUser } from '@/utilities/getUser';
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
@@ -28,6 +29,14 @@ export default async function RootLayout({
 	children: React.ReactNode;
 }>) {
 	const { isLoggedIn, user } = await getUser();
+
+	// Get user's first name if logged in
+	let firstName: string | undefined;
+	if (user?.id) {
+		const profile = await getUserProfile(user.id);
+		firstName = profile?.first_name ?? undefined;
+	}
+
 	return (
 		<html lang="en">
 			<body
@@ -39,6 +48,7 @@ export default async function RootLayout({
 							isLoggedIn={isLoggedIn}
 							userEmail={user?.email}
 							userId={user?.id}
+							firstName={firstName}
 						/>
 						<main className="flex-1">
 							<div className="max-w-7xl mx-auto px-6 py-8">{children}</div>

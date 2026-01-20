@@ -128,7 +128,7 @@ export function RecipeSelector({
 						key={recipe.url}
 						recipe={recipe}
 						isSelected={likedRecipes.value.has(recipe.url)}
-						onToggle={() => likedRecipes.toggle(recipe.url)}
+						onSelect={() => likedRecipes.toggle(recipe.url)}
 					/>
 				))}
 			</div>

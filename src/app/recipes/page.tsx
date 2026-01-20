@@ -1,17 +1,71 @@
-import { createClient } from '@/services/supabase/server';
+'use client';
+
+import { RecipeGrid } from '@/app/_components/RecipeGrid';
+import {
+	getFilteredRecipes,
+	getUserLikedRecipeUrls,
+	toggleLikedRecipe,
+} from '@/services/supabase/api';
+import { createClient } from '@/services/supabase/client';
 import Link from 'next/link';
-import { RecipeCard } from '../_components/Card';
+import { Suspense, useEffect, useState } from 'react';
+import { Recipe } from '../../../database.types';
 
-export default async function RecipesPage() {
-	const supabase = await createClient();
+function RecipesContent() {
+	const [recipes, setRecipes] = useState<Recipe[]>([]);
+	const [likedUrls, setLikedUrls] = useState<Set<string>>(new Set());
+	const [loading, setLoading] = useState(true);
+	const [userId, setUserId] = useState<string | null>(null);
 
-	const { data: recipes, error } = await supabase
-		.from('recipes')
-		.select('*')
-		.order('name');
+	useEffect(() => {
+		async function loadData() {
+			const supabase = createClient();
+			const {
+				data: { user },
+			} = await supabase.auth.getUser();
 
-	if (error) {
-		console.error('Error fetching recipes:', error);
+			if (!user) return;
+
+			setUserId(user.id);
+
+			// Load filtered recipes and liked URLs in parallel
+			const [filteredRecipes, liked] = await Promise.all([
+				getFilteredRecipes(user.id),
+				getUserLikedRecipeUrls(user.id),
+			]);
+
+			setRecipes(filteredRecipes);
+			setLikedUrls(liked);
+			setLoading(false);
+		}
+
+		loadData();
+	}, []);
+
+	const handleLikeToggle = async (recipeUrl: string) => {
+		if (!userId) return;
+
+		// Optimistic update
+		setLikedUrls((prev) => {
+			const newSet = new Set(prev);
+			if (newSet.has(recipeUrl)) {
+				newSet.delete(recipeUrl);
+			} else {
+				newSet.add(recipeUrl);
+			}
+			return newSet;
+		});
+
+		// Actually toggle in database
+		await toggleLikedRecipe(userId, recipeUrl);
+	};
+
+	if (loading) {
+		return (
+			<div className="flex items-center justify-center min-h-[60vh]">
+				<div className="text-charcoal-muted">Loading recipes...</div>
+			</div>
+		);
 	}
 
 	return (
@@ -19,30 +73,25 @@ export default async function RecipesPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold text-charcoal">All Recipes</h1>
+					<h1 className="text-2xl font-bold text-charcoal">Recipes</h1>
 					<p className="text-charcoal-muted">
-						{recipes?.length || 0} recipes available
+						{recipes.length} recipes match your dietary preferences
 					</p>
 				</div>
-				<Link
-					href="/recipes/add"
-					className="btn-primary-filled"
-				>
+				<Link href="/recipes/add" className="btn-primary-filled">
 					Add Recipe
 				</Link>
 			</div>
 
-			{/* Recipe Grid */}
+			{/* Recipe Grid with quick view */}
 			{recipes && recipes.length > 0 ? (
-				<div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-					{recipes.map((recipe) => (
-						<RecipeCard
-							key={recipe.url}
-							recipe={recipe}
-							showSelectButton={false}
-						/>
-					))}
-				</div>
+				<RecipeGrid
+					recipes={recipes}
+					likedUrls={likedUrls}
+					onLikeToggle={handleLikeToggle}
+					showSelectButton={false}
+					showLikeButton={true}
+				/>
 			) : (
 				<div className="bg-white rounded-xl p-12 text-center">
 					<div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -68,14 +117,25 @@ export default async function RecipesPage() {
 					<p className="text-charcoal-muted mb-6">
 						Start by adding your first recipe to the collection.
 					</p>
-					<Link
-						href="/recipes/add"
-						className="btn-primary-filled inline-block"
-					>
+					<Link href="/recipes/add" className="btn-primary-filled inline-block">
 						Add Your First Recipe
 					</Link>
 				</div>
 			)}
 		</div>
+	);
+}
+
+export default function RecipesPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="flex items-center justify-center min-h-[60vh]">
+					<div className="text-charcoal-muted">Loading recipes...</div>
+				</div>
+			}
+		>
+			<RecipesContent />
+		</Suspense>
 	);
 }

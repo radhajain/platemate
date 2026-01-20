@@ -13,9 +13,10 @@ import { Button } from './Button';
 
 interface GroceryListProps {
 	recipes: readonly Recipe[];
+	weeklyStaples?: string[];
 }
 
-export function GroceryList({ recipes }: GroceryListProps) {
+export function GroceryList({ recipes, weeklyStaples = [] }: GroceryListProps) {
 	const [checkedItems, setCheckedItems] = React.useState<Set<string>>(
 		new Set()
 	);
@@ -36,6 +37,7 @@ export function GroceryList({ recipes }: GroceryListProps) {
 		// Expand all categories by default
 		setExpandedCategories(
 			new Set([
+				'Weekly Staples',
 				'Produce',
 				'Dairy & Eggs',
 				'Meat & Seafood',
@@ -103,7 +105,17 @@ export function GroceryList({ recipes }: GroceryListProps) {
 	const copyToClipboard = async () => {
 		if (!groceryList) return;
 
-		const text = groceryList.categories
+		let text = '';
+
+		// Add weekly staples first if any
+		if (weeklyStaples.length > 0) {
+			const staplesItems = weeklyStaples
+				.map((item) => `  [ ] ${item}`)
+				.join('\n');
+			text += `Weekly Staples:\n${staplesItems}\n\n`;
+		}
+
+		text += groceryList.categories
 			.map((cat) => {
 				const items = cat.items
 					.map((item) => `  [ ] ${item.quantity} ${item.name}`)
@@ -120,10 +132,10 @@ export function GroceryList({ recipes }: GroceryListProps) {
 		}
 	};
 
-	const totalItems = groceryList?.categories.reduce(
+	const totalItems = (groceryList?.categories.reduce(
 		(sum, cat) => sum + cat.items.length,
 		0
-	);
+	) || 0) + weeklyStaples.length;
 	const checkedCount = checkedItems.size;
 
 	if (recipes.length === 0) {
@@ -203,6 +215,16 @@ export function GroceryList({ recipes }: GroceryListProps) {
 
 			{/* Categories */}
 			<div className="divide-y divide-cream-dark">
+				{/* Weekly Staples Section */}
+				{weeklyStaples.length > 0 && (
+					<StaplesSection
+						staples={weeklyStaples}
+						isExpanded={expandedCategories.has('Weekly Staples')}
+						onToggle={() => toggleCategory('Weekly Staples')}
+						checkedItems={checkedItems}
+						onToggleItem={toggleItem}
+					/>
+				)}
 				{groceryList.categories.map((category) => (
 					<CategorySection
 						key={category.name}
@@ -307,6 +329,88 @@ function CategorySection({
 										Use soon
 									</span>
 								)}
+							</div>
+						);
+					})}
+				</div>
+			)}
+		</div>
+	);
+}
+
+interface StaplesSectionProps {
+	staples: string[];
+	isExpanded: boolean;
+	onToggle: () => void;
+	checkedItems: Set<string>;
+	onToggleItem: (key: string) => void;
+}
+
+function StaplesSection({
+	staples,
+	isExpanded,
+	onToggle,
+	checkedItems,
+	onToggleItem,
+}: StaplesSectionProps) {
+	const checkedCount = staples.filter((item) =>
+		checkedItems.has(`Weekly Staples-${item}`)
+	).length;
+
+	return (
+		<div>
+			<button
+				onClick={onToggle}
+				className="w-full px-4 py-3 flex items-center justify-between hover:bg-cream-light transition-colors bg-primary/5"
+			>
+				<div className="flex items-center gap-3">
+					<span
+						className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+					>
+						<ChevronRight />
+					</span>
+					<span className="font-medium text-charcoal">Weekly Staples</span>
+					<span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+						Every week
+					</span>
+					<span className="text-sm text-charcoal-muted">
+						({checkedCount}/{staples.length})
+					</span>
+				</div>
+			</button>
+
+			{isExpanded && (
+				<div className="px-4 pb-3 space-y-2 bg-primary/5">
+					{staples.map((item) => {
+						const itemKey = `Weekly Staples-${item}`;
+						const isChecked = checkedItems.has(itemKey);
+
+						return (
+							<div
+								key={itemKey}
+								className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+									isChecked
+										? 'bg-cream-dark border-cream-dark'
+										: 'bg-white border-cream-dark hover:border-primary'
+								}`}
+								onClick={() => onToggleItem(itemKey)}
+							>
+								<div
+									className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+										isChecked
+											? 'bg-primary border-primary text-white'
+											: 'border-charcoal-muted'
+									}`}
+								>
+									{isChecked && <CheckIcon />}
+								</div>
+								<div className="flex-1">
+									<span
+										className={`${isChecked ? 'line-through text-charcoal-muted' : 'text-charcoal'}`}
+									>
+										{item}
+									</span>
+								</div>
 							</div>
 						);
 					})}

@@ -1,27 +1,27 @@
-import { createClient } from '@/services/supabase/server';
+import { getUserProfile, getWeeklyRecipes } from '@/services/supabase/api';
 import { getUser } from '@/utilities/getUser';
+import { startOfWeek } from 'date-fns';
 import { redirect } from 'next/navigation';
-import { Recipe } from '../../../database.types';
-import { GenerateWeeklyRecipes } from '../_components/GenerateWeeklyRecipes';
+import { MealPlanDashboard } from '../_components/MealPlanDashboard';
 
-export default async function UserProfile() {
-	const supabase = await createClient();
+export default async function UserMealPlan() {
 	const { isLoggedIn, user } = await getUser();
+
 	if (!isLoggedIn) {
 		redirect('/login');
 	}
-	const userWeeklyRecipesQuery = supabase.from('weekly_user_recipes').select(`
-    recipes (*)
-  `);
-	const { data, error } = await userWeeklyRecipesQuery;
-	if (error) {
-		redirect('/error');
-	}
-	const recipes: readonly Recipe[] = data.flatMap(({ recipes }) => recipes);
+
+	const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+	const [recipes, profile] = await Promise.all([
+		getWeeklyRecipes(user.id, weekStart),
+		getUserProfile(user.id),
+	]);
+
 	return (
-		<div>
-			<p>Hello {user.email}</p>
-			<GenerateWeeklyRecipes user={user} recipes={recipes} />
-		</div>
+		<MealPlanDashboard
+			user={user}
+			initialRecipes={recipes}
+			weeklyStaples={profile?.weekly_staples || []}
+		/>
 	);
 }

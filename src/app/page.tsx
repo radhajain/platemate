@@ -1,6 +1,15 @@
+import { getUser } from '@/utilities/getUser';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 export default async function Home() {
+	const { isLoggedIn, user } = await getUser();
+
+	// Redirect logged-in users to their meal plan
+	if (isLoggedIn && user) {
+		redirect(`/${user.id}`);
+	}
+
 	return (
 		<div className="flex flex-col gap-16">
 			{/* Hero Section */}

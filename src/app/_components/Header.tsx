@@ -1,18 +1,90 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useRef, useEffect } from 'react';
+import { createClient } from '@/services/supabase/client';
 
 interface HeaderProps {
 	isLoggedIn: boolean;
 	userEmail?: string;
 	userId?: string;
+	firstName?: string;
 }
 
-export function Header({ isLoggedIn, userEmail, userId }: HeaderProps) {
+function ChevronDownIcon() {
+	return (
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			fill="none"
+			viewBox="0 0 24 24"
+			strokeWidth={2}
+			stroke="currentColor"
+			className="w-4 h-4"
+		>
+			<path
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+			/>
+		</svg>
+	);
+}
+
+function UserIcon() {
+	return (
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			fill="none"
+			viewBox="0 0 24 24"
+			strokeWidth={1.5}
+			stroke="currentColor"
+			className="w-5 h-5"
+		>
+			<path
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+			/>
+		</svg>
+	);
+}
+
+export function Header({
+	isLoggedIn,
+	userEmail,
+	userId,
+	firstName,
+}: HeaderProps) {
 	const pathname = usePathname();
+	const router = useRouter();
+	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 
 	const isActive = (path: string) => pathname === path;
+
+	const displayName = firstName || userEmail?.split('@')[0] || 'Account';
+
+	// Close dropdown when clicking outside
+	useEffect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (
+				dropdownRef.current &&
+				!dropdownRef.current.contains(event.target as Node)
+			) {
+				setDropdownOpen(false);
+			}
+		}
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
+
+	const handleSignOut = async () => {
+		const supabase = createClient();
+		await supabase.auth.signOut();
+		router.push('/login');
+	};
 
 	return (
 		<header className="w-full bg-cream-light border-b border-cream-dark">
@@ -33,32 +105,47 @@ export function Header({ isLoggedIn, userEmail, userId }: HeaderProps) {
 							Recipes
 						</Link>
 						{isLoggedIn && (
-							<>
-								<Link
-									href={`/${userId}`}
-									className={`nav-link ${isActive(`/${userId}`) ? 'text-primary-dark' : ''}`}
-								>
-									Meal Plan
-								</Link>
-								<Link
-									href="/grocery-list"
-									className={`nav-link ${isActive('/grocery-list') ? 'text-primary-dark' : ''}`}
-								>
-									Grocery List
-								</Link>
-							</>
+							<Link
+								href={`/${userId}`}
+								className={`nav-link ${isActive(`/${userId}`) ? 'text-primary-dark' : ''}`}
+							>
+								Meal Plan
+							</Link>
 						)}
 					</nav>
 
 					<div className="flex items-center gap-4">
 						{isLoggedIn ? (
-							<div className="flex items-center gap-4">
-								<span className="text-sm text-charcoal-muted hidden sm:inline">
-									{userEmail}
-								</span>
-								<Link href={`/${userId}`} className="btn-primary">
-									My Plan
-								</Link>
+							<div className="relative" ref={dropdownRef}>
+								<button
+									onClick={() => setDropdownOpen(!dropdownOpen)}
+									className="flex items-center gap-2 px-4 py-2 rounded-full border border-cream-dark hover:border-primary transition-colors bg-white"
+								>
+									<UserIcon />
+									<span className="text-sm font-medium text-charcoal">
+										{displayName}
+									</span>
+									<ChevronDownIcon />
+								</button>
+
+								{dropdownOpen && (
+									<div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-cream-dark py-1 z-50">
+										<Link
+											href="/profile"
+											className="block px-4 py-2 text-sm text-charcoal hover:bg-cream transition-colors"
+											onClick={() => setDropdownOpen(false)}
+										>
+											Profile Settings
+										</Link>
+										<hr className="my-1 border-cream-dark" />
+										<button
+											onClick={handleSignOut}
+											className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+										>
+											Sign Out
+										</button>
+									</div>
+								)}
 							</div>
 						) : (
 							<div className="flex items-center gap-3">

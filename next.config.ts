@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
 				hostname: 'cdn.loveandlemons.com',
 				pathname: '/wp-content/uploads/**',
 			},
+			{
+				protocol: 'https',
+				hostname: 'static01.nyt.com',
+				pathname: '/images/**',
+			},
 		],
 	},
 };

@@ -144,6 +144,7 @@ function convertSchemaToRecipe(schema: SchemaOrgRecipe): Omit<Recipe, 'url'> {
 			? parseInt(String(schema.aggregateRating.ratingCount))
 			: null,
 		notes: schema.description || null,
+		dietary_tags: null, // Will be classified by Claude later
 	};
 }
 
@@ -231,6 +232,7 @@ function parseWPRM(
 		ratingCount:
 			parseInt(container.find('.wprm-recipe-rating-count').text()) || null,
 		notes: container.find('.wprm-recipe-notes').text().trim() || null,
+		dietary_tags: null, // Will be classified by Claude later
 	};
 }
 
@@ -261,6 +263,7 @@ function parseTastyRecipes(
 		ratingAvg: null,
 		ratingCount: null,
 		notes: container.find('.tasty-recipes-notes').text().trim() || null,
+		dietary_tags: null, // Will be classified by Claude later
 	};
 }
 
@@ -328,5 +331,6 @@ function parseGenericHtml($: CheerioAPI): Omit<Recipe, 'url'> | null {
 		ratingAvg: null,
 		ratingCount: null,
 		notes: null,
+		dietary_tags: null, // Will be classified by Claude later
 	};
 }

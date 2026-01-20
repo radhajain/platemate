@@ -1,4 +1,5 @@
 export type Recipe = Tables<'recipes'>;
+export type UserProfile = Tables<'user_profiles'>;
 
 export type Json =
 	| string
@@ -24,6 +25,7 @@ export type Database = {
 					ratingCount: number | null;
 					servings: string | null;
 					url: string;
+					dietary_tags: string[] | null;
 				};
 				Insert: {
 					cookTime?: string | null;
@@ -37,6 +39,7 @@ export type Database = {
 					ratingCount?: number | null;
 					servings?: string | null;
 					url: string;
+					dietary_tags?: string[] | null;
 				};
 				Update: {
 					cookTime?: string | null;
@@ -50,6 +53,37 @@ export type Database = {
 					ratingCount?: number | null;
 					servings?: string | null;
 					url?: string;
+					dietary_tags?: string[] | null;
+				};
+				Relationships: [];
+			};
+			user_profiles: {
+				Row: {
+					id: string;
+					user_id: string;
+					first_name: string | null;
+					dietary_preferences: string[] | null;
+					weekly_staples: string[] | null;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					first_name?: string | null;
+					dietary_preferences?: string[] | null;
+					weekly_staples?: string[] | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					first_name?: string | null;
+					dietary_preferences?: string[] | null;
+					weekly_staples?: string[] | null;
+					created_at?: string;
+					updated_at?: string;
 				};
 				Relationships: [];
 			};

@@ -86,6 +86,7 @@ async function parseRecipeFromHtml(data: string): Promise<Omit<Recipe, 'url'>> {
 		ingredients: [],
 		instructions: [],
 		notes: recipeContainer.find('.wprm-recipe-notes').text().trim(),
+		dietary_tags: null, // Will be classified by Claude later
 	};
 
 	recipeContainer.find('.wprm-recipe-instruction-text').each((_, elem) => {

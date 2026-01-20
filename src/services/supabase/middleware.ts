@@ -48,6 +48,29 @@ export async function updateSession(request: NextRequest) {
 		return NextResponse.redirect(url);
 	}
 
+	// Check if user has a profile (skip for profile page, login, auth, and API routes)
+	if (
+		user &&
+		!request.nextUrl.pathname.startsWith('/profile') &&
+		!request.nextUrl.pathname.startsWith('/login') &&
+		!request.nextUrl.pathname.startsWith('/auth') &&
+		!request.nextUrl.pathname.startsWith('/api')
+	) {
+		// Check if user has a profile
+		const { data: profile } = await supabase
+			.from('user_profiles')
+			.select('id')
+			.eq('user_id', user.id)
+			.single();
+
+		if (!profile) {
+			// No profile, redirect to profile setup
+			const url = request.nextUrl.clone();
+			url.pathname = '/profile';
+			return NextResponse.redirect(url);
+		}
+	}
+
 	// IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
 	// creating a new response object with NextResponse.next() make sure to:
 	// 1. Pass the request in it, like so:
