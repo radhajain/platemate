@@ -1,6 +1,11 @@
 # Plate Mate
 
-A smart meal planning application that helps busy people eat fresh and healthy food while minimizing waste, saving time grocery shopping, and avoiding decision fatigue.
+Meal planning app that helps busy people eat fresh and healthy food while minimizing waste, saving time grocery shopping, and avoiding decision fatigue.
+
+<img width="2922" height="1584" alt="CleanShot 2026-01-20 at 14 01 39@2x" src="https://github.com/user-attachments/assets/69bb8625-35be-4886-80e2-249cb82efd27" />
+<img width="2928" height="1584" alt="CleanShot 2026-01-20 at 14 04 00@2x" src="https://github.com/user-attachments/assets/54dd058f-59a0-431a-9184-5ab07e048424" />
+<img width="2896" height="1582" alt="CleanShot 2026-01-20 at 14 02 51@2x" src="https://github.com/user-attachments/assets/a444da2a-8be9-4a9e-9d4d-f6b768aaa3ae" />
+
 
 ## Features
 
@@ -8,13 +13,10 @@ A smart meal planning application that helps busy people eat fresh and healthy f
 - **Browse Recipes** - Explore curated recipes from trusted sources like Love & Lemons and NYT Cooking
 - **Dietary Filtering** - Filter recipes by dietary preferences (vegetarian, vegan, gluten-free, keto, and more)
 - **Like & Save** - Save your favorite recipes to build a personalized recipe collection
-- **Select All** - Quickly select or deselect all recipes when browsing
 
 ### Meal Planning
-- **Choose Your Own** - Manually select specific recipes you want to cook this week
 - **AI-Powered Suggestions** - Get intelligent recipe recommendations based on your preferences and ingredient overlap
 - **Hybrid Planning** - Choose some meals yourself, then let AI fill in the rest
-- **Weekly Plans** - Organize meals by week with easy modification
 
 ### Smart Grocery Lists
 - **Auto-Generated Lists** - Grocery lists are automatically created from your selected recipes
@@ -23,8 +25,6 @@ A smart meal planning application that helps busy people eat fresh and healthy f
 - **Weekly Staples** - Define items that automatically appear on every grocery list
 - **Perishable Alerts** - Items marked "Use soon" for better meal timing
 - **Progress Tracking** - Check off items as you shop (persisted to local storage)
-- **Copy to Clipboard** - Export your list for use in other apps
-- **Storage Tips** - AI-generated tips for ingredient storage
 
 ### User Profiles & Preferences
 - **Dietary Preferences** - Set restrictions like vegetarian, no red meat, halal, kosher, etc.
@@ -50,11 +50,6 @@ A smart meal planning application that helps busy people eat fresh and healthy f
 
 ### AI/ML
 - **Anthropic Claude API** - Powers recipe suggestions, grocery list generation, and ingredient analysis
-
-### Other
-- **date-fns** - Date manipulation
-- **Cheerio** - HTML parsing for recipe scraping
-- **Jest** - Testing framework
 
 ## Getting Started
 
@@ -96,32 +91,5 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 
 ```bash
 npm test
-npm run test:watch
 ```
 
-## Project Structure
-
-```
-src/
-├── app/                    # Next.js App Router pages
-│   ├── _components/        # Shared React components
-│   ├── [username]/         # User-specific pages
-│   ├── api/                # API routes
-│   ├── login/              # Authentication
-│   ├── profile/            # User preferences
-│   ├── quiz/               # Recipe selection onboarding
-│   └── recipes/            # Recipe browsing
-├── services/
-│   └── supabase/           # Database client and API functions
-└── utilities/
-    ├── hooks/              # Custom React hooks
-    └── prompts/            # AI prompt templates
-```
-
-## Database Schema
-
-Key tables:
-- `recipes` - Recipe data (name, URL, image, ingredients, dietary tags)
-- `user_profiles` - User preferences and weekly staples
-- `user_liked_recipes` - User's saved recipes
-- `weekly_user_recipes` - Weekly meal plan assignments
