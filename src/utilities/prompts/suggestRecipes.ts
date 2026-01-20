@@ -1,4 +1,4 @@
-import { Prompt } from './prompt';
+import { JsonSchema } from '../llm';
 import { Recipe } from '../../../database.types';
 
 export interface RecipeSuggestionResult {
@@ -7,11 +7,28 @@ export interface RecipeSuggestionResult {
 	sharedIngredients: string[];
 }
 
+export const RECIPE_SUGGESTION_SCHEMA: JsonSchema = {
+	type: 'object',
+	properties: {
+		selectedRecipes: {
+			type: 'array',
+			items: { type: 'string' },
+		},
+		reasoning: { type: 'string' },
+		sharedIngredients: {
+			type: 'array',
+			items: { type: 'string' },
+		},
+	},
+	required: ['selectedRecipes', 'reasoning', 'sharedIngredients'],
+	additionalProperties: false,
+};
+
 export function suggestRecipesPrompt(
 	recipes: Recipe[],
 	userRequest: string,
 	numberOfRecipes: number = 10
-): Prompt {
+) {
 	const recipeList = recipes
 		.map((r) => {
 			const ingredients = r.ingredients?.slice(0, 5).join(', ') || 'unknown';

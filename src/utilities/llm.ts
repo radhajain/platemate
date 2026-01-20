@@ -1,44 +1,50 @@
-import { Prompt } from './prompts/prompt';
+'use server';
 
-// Calls the server-side API route to use Claude
-export async function llm(prompt: Prompt): Promise<string | undefined> {
-	const systemPrompt = `${prompt.systemPrompt}\n\n${prompt.returnType}`;
-	const userMessage = prompt.taskPrompt;
+import Anthropic from '@anthropic-ai/sdk';
 
-	console.log('Sending to Claude via API:', { systemPrompt, userMessage });
+const anthropic = new Anthropic({
+	apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
+// Type for JSON Schema
+export type JsonSchema = {
+	type: 'object';
+	properties: Record<string, unknown>;
+	required: string[];
+	additionalProperties: false;
+};
+
+// Structured output function using Claude's native JSON schema support
+export async function llmStructured<T>(
+	systemPrompt: string,
+	userMessage: string,
+	schema: JsonSchema,
+): Promise<T | undefined> {
 	try {
-		const res = await fetch('/api/llm', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ systemPrompt, userMessage }),
+		const response = await anthropic.beta.messages.create({
+			model: 'claude-haiku-4-5-20251001',
+			max_tokens: 10024,
+			betas: ['structured-outputs-2025-11-13'],
+			system: systemPrompt,
+			messages: [{ role: 'user', content: userMessage }],
+			output_format: {
+				type: 'json_schema',
+				schema: schema,
+			},
 		});
 
-		if (!res.ok) {
-			throw new Error(`API error: ${res.status}`);
+		const textContent = response.content.find((block) => block.type === 'text');
+		if (textContent?.type === 'text') {
+			return JSON.parse(textContent.text) as T;
 		}
-
-		const data = await res.json();
-		console.log('Claude response:', data.response);
-		return data.response;
-	} catch (error) {
-		console.error('Failed to generate text with Claude:', error);
 		return undefined;
-	}
-}
-
-// JSON-specific variant for structured responses
-export async function llmJSON<T>(prompt: Prompt): Promise<T | undefined> {
-	const response = await llm(prompt);
-	if (!response) return undefined;
-
-	try {
-		// Extract JSON from response (handle markdown code blocks)
-		const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
-		const jsonStr = jsonMatch ? jsonMatch[1].trim() : response.trim();
-		return JSON.parse(jsonStr) as T;
 	} catch (error) {
-		console.error('Failed to parse JSON response:', error);
+		console.error('Failed to generate structured output:', error);
+		// Log full error details for debugging
+		if (error instanceof Error) {
+			console.error('Error message:', error.message);
+			console.error('Error stack:', error.stack);
+		}
 		return undefined;
 	}
 }

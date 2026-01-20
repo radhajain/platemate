@@ -1,3 +1,4 @@
+import { JsonSchema } from '../llm';
 import { Recipe } from '../../../database.types';
 import { Prompt } from './prompt';
 
@@ -16,6 +17,42 @@ export interface StructuredGroceryList {
 	categories: GroceryCategory[];
 	tips: string[];
 }
+
+export const STRUCTURED_GROCERY_LIST_SCHEMA: JsonSchema = {
+	type: 'object',
+	properties: {
+		categories: {
+			type: 'array',
+			items: {
+				type: 'object',
+				properties: {
+					name: { type: 'string' },
+					items: {
+						type: 'array',
+						items: {
+							type: 'object',
+							properties: {
+								name: { type: 'string' },
+								quantity: { type: 'string' },
+								isPerishable: { type: 'boolean' },
+							},
+							required: ['name', 'quantity', 'isPerishable'],
+							additionalProperties: false,
+						},
+					},
+				},
+				required: ['name', 'items'],
+				additionalProperties: false,
+			},
+		},
+		tips: {
+			type: 'array',
+			items: { type: 'string' },
+		},
+	},
+	required: ['categories', 'tips'],
+	additionalProperties: false,
+};
 
 // Legacy function for backward compatibility
 export function dedupeGroceryList(recipes: readonly Recipe[]): Prompt {

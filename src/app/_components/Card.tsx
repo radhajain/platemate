@@ -136,7 +136,6 @@ export function RecipeCard({
 						fill
 						className="object-cover"
 						sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-						quality={85}
 						unoptimized={recipe.image.includes('loveandlemons.com')}
 					/>
 				) : (

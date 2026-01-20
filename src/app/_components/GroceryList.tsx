@@ -1,10 +1,9 @@
 'use client';
 
-import { llmJSON } from '@/utilities/llm';
+import { generateGroceryList } from '@/services/supabase/api';
 import {
 	GroceryCategory,
 	StructuredGroceryList,
-	structuredGroceryListPrompt,
 } from '@/utilities/prompts/dedupeGroceryList';
 import { useQuery } from '@tanstack/react-query';
 import * as React from 'react';
@@ -66,8 +65,8 @@ export function GroceryList({ recipes, weeklyStaples = [] }: GroceryListProps) {
 	} = useQuery({
 		queryKey: ['structuredGroceryList', recipes.map((r) => r.url).join(',')],
 		queryFn: async () => {
-			const prompt = structuredGroceryListPrompt(recipes);
-			return await llmJSON<StructuredGroceryList>(prompt);
+			// Use server action for structured output
+			return await generateGroceryList([...recipes]);
 		},
 		enabled: recipes.length > 0,
 		staleTime: 1000 * 60 * 5, // Cache for 5 minutes

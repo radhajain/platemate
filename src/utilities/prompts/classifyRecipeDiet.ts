@@ -1,10 +1,23 @@
-import { Prompt } from './prompt';
+import { JsonSchema } from '../llm';
 import { Recipe } from '../../../database.types';
 
 export interface DietaryClassificationResult {
 	dietaryTags: string[];
 	reasoning: string;
 }
+
+export const DIETARY_CLASSIFICATION_SCHEMA: JsonSchema = {
+	type: 'object',
+	properties: {
+		dietaryTags: {
+			type: 'array',
+			items: { type: 'string' },
+		},
+		reasoning: { type: 'string' },
+	},
+	required: ['dietaryTags', 'reasoning'],
+	additionalProperties: false,
+};
 
 export const DIETARY_TAG_OPTIONS = [
 	// Positive tags (what the recipe IS)
@@ -27,7 +40,7 @@ export const DIETARY_TAG_OPTIONS = [
 
 export type DietaryTag = (typeof DIETARY_TAG_OPTIONS)[number];
 
-export function classifyRecipeDietPrompt(recipe: Recipe): Prompt {
+export function classifyRecipeDietPrompt(recipe: Recipe) {
 	const ingredientList = recipe.ingredients?.join('\n- ') || 'No ingredients listed';
 
 	return {

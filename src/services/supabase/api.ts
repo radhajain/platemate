@@ -1,13 +1,20 @@
 'use server';
-import { llmJSON } from '@/utilities/llm';
+import { llmStructured } from '@/utilities/llm';
 import {
+	SMART_MEAL_PLAN_SCHEMA,
 	SmartMealPlanResult,
 	smartMealPlanPrompt,
 } from '@/utilities/prompts/smartMealPlan';
 import {
+	RECIPE_SUGGESTION_SCHEMA,
 	RecipeSuggestionResult,
 	suggestRecipesPrompt,
 } from '@/utilities/prompts/suggestRecipes';
+import {
+	STRUCTURED_GROCERY_LIST_SCHEMA,
+	StructuredGroceryList,
+	structuredGroceryListPrompt,
+} from '@/utilities/prompts/dedupeGroceryList';
 import { SupabaseClient, User } from '@supabase/supabase-js';
 import { Recipe, UserProfile } from '../../../database.types';
 import { createClient } from './server';
@@ -15,7 +22,7 @@ import { createClient } from './server';
 // ==================== User Profile Functions ====================
 
 export async function getUserProfile(
-	userId: string
+	userId: string,
 ): Promise<UserProfile | null> {
 	const supabase = await createClient();
 	const { data, error } = await supabase
@@ -38,7 +45,11 @@ export async function getUserProfile(
 
 export async function saveUserProfile(
 	userId: string,
-	profile: { firstName?: string; dietaryPreferences?: string[]; weeklyStaples?: string[] }
+	profile: {
+		firstName?: string;
+		dietaryPreferences?: string[];
+		weeklyStaples?: string[];
+	},
 ): Promise<UserProfile | null> {
 	const supabase = await createClient();
 
@@ -88,7 +99,7 @@ export async function saveUserProfile(
 // ==================== Liked Recipes Functions ====================
 
 export async function getUserLikedRecipeUrls(
-	userId: string
+	userId: string,
 ): Promise<Set<string>> {
 	const supabase = await createClient();
 	const { data, error } = await supabase
@@ -127,7 +138,7 @@ export async function getUserLikedRecipes(userId: string): Promise<Recipe[]> {
 
 export async function toggleLikedRecipe(
 	userId: string,
-	recipeUrl: string
+	recipeUrl: string,
 ): Promise<boolean> {
 	const supabase = await createClient();
 
@@ -169,9 +180,7 @@ export async function toggleLikedRecipe(
 
 // ==================== Recipe Filtering Functions ====================
 
-export async function getFilteredRecipes(
-	userId: string
-): Promise<Recipe[]> {
+export async function getFilteredRecipes(userId: string): Promise<Recipe[]> {
 	const supabase = await createClient();
 
 	// Get user's dietary preferences
@@ -216,7 +225,7 @@ export async function generateWeeklyRecipes(
 	userId: User['id'],
 	weekStartDate: Date,
 	supabase: SupabaseClient,
-	numberOfMeals: number = 5
+	numberOfMeals: number = 5,
 ) {
 	// Get user's liked recipes with full recipe data
 	const { data: likedRecipeData, error } = await supabase
@@ -243,7 +252,11 @@ export async function generateWeeklyRecipes(
 	// Use Claude to select recipes intelligently if we have enough recipes
 	if (recipes.length >= numberOfMeals) {
 		const prompt = smartMealPlanPrompt(recipes, numberOfMeals);
-		const result = await llmJSON<SmartMealPlanResult>(prompt);
+		const result = await llmStructured<SmartMealPlanResult>(
+			prompt.systemPrompt,
+			prompt.taskPrompt,
+			SMART_MEAL_PLAN_SCHEMA,
+		);
 
 		if (result && result.selectedRecipes.length > 0) {
 			selectedUrls = result.selectedRecipes;
@@ -274,7 +287,7 @@ export async function generateWeeklyRecipes(
 				user_id: userId,
 				recipe_url: url,
 				week_start_date: weekStartDate,
-			}))
+			})),
 		)
 		.select('*');
 
@@ -294,14 +307,14 @@ function selectRandomRecipes(recipes: Recipe[], count: number): string[] {
 
 export async function saveUserLikedRecipes(
 	user: User,
-	likedRecipeUrls: Set<string>
+	likedRecipeUrls: Set<string>,
 ) {
 	const supabase = await createClient();
 	const { error } = await supabase.from('user_liked_recipes').insert(
 		Array.from(likedRecipeUrls).map((url) => ({
 			user_id: user.id,
 			recipe_url: url,
-		}))
+		})),
 	);
 	if (error) {
 		console.error('Error inserting data:', error);
@@ -314,7 +327,7 @@ export async function saveUserLikedRecipes(
 
 export async function getWeeklyRecipes(
 	userId: string,
-	weekStartDate: Date
+	weekStartDate: Date,
 ): Promise<Recipe[]> {
 	const supabase = await createClient();
 	const { data, error } = await supabase
@@ -336,7 +349,7 @@ export async function getWeeklyRecipes(
 export async function removeRecipeFromWeeklyPlan(
 	userId: string,
 	recipeUrl: string,
-	weekStartDate: Date
+	weekStartDate: Date,
 ): Promise<boolean> {
 	const supabase = await createClient();
 	const { error } = await supabase
@@ -356,7 +369,7 @@ export async function removeRecipeFromWeeklyPlan(
 export async function addRecipeToWeeklyPlan(
 	userId: string,
 	recipeUrl: string,
-	weekStartDate: Date
+	weekStartDate: Date,
 ): Promise<boolean> {
 	const supabase = await createClient();
 	const { error } = await supabase.from('weekly_user_recipes').insert({
@@ -375,8 +388,12 @@ export async function addRecipeToWeeklyPlan(
 export async function getSuggestedRecipes(
 	userId: string,
 	userRequest: string,
-	numberOfRecipes: number = 10
-): Promise<{ recipes: Recipe[]; reasoning: string; sharedIngredients: string[] } | null> {
+	numberOfRecipes: number = 10,
+): Promise<{
+	recipes: Recipe[];
+	reasoning: string;
+	sharedIngredients: string[];
+} | null> {
 	const supabase = await createClient();
 
 	// Get user's liked recipes
@@ -395,12 +412,20 @@ export async function getSuggestedRecipes(
 		.filter((r): r is Recipe => r !== null && r !== undefined);
 
 	if (recipes.length === 0) {
-		return { recipes: [], reasoning: 'No liked recipes found', sharedIngredients: [] };
+		return {
+			recipes: [],
+			reasoning: 'No liked recipes found',
+			sharedIngredients: [],
+		};
 	}
 
 	// Use Claude to suggest recipes
 	const prompt = suggestRecipesPrompt(recipes, userRequest, numberOfRecipes);
-	const result = await llmJSON<RecipeSuggestionResult>(prompt);
+	const result = await llmStructured<RecipeSuggestionResult>(
+		prompt.systemPrompt,
+		prompt.taskPrompt,
+		RECIPE_SUGGESTION_SCHEMA,
+	);
 
 	if (!result) {
 		// Fallback to random selection
@@ -427,7 +452,7 @@ export async function getSuggestedRecipes(
 export async function saveWeeklyPlan(
 	userId: string,
 	recipeUrls: string[],
-	weekStartDate: Date
+	weekStartDate: Date,
 ): Promise<boolean> {
 	const supabase = await createClient();
 
@@ -444,7 +469,7 @@ export async function saveWeeklyPlan(
 			user_id: userId,
 			recipe_url: url,
 			week_start_date: weekStartDate.toISOString(),
-		}))
+		})),
 	);
 
 	if (error) {
@@ -452,4 +477,21 @@ export async function saveWeeklyPlan(
 		return false;
 	}
 	return true;
+}
+
+// ==================== Grocery List Functions ====================
+
+export async function generateGroceryList(
+	recipes: Recipe[],
+): Promise<StructuredGroceryList | null> {
+	if (recipes.length === 0) return null;
+
+	const prompt = structuredGroceryListPrompt(recipes);
+	const result = await llmStructured<StructuredGroceryList>(
+		prompt.systemPrompt,
+		prompt.taskPrompt,
+		STRUCTURED_GROCERY_LIST_SCHEMA,
+	);
+
+	return result || null;
 }

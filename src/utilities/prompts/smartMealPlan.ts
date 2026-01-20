@@ -1,5 +1,5 @@
+import { JsonSchema } from '../llm';
 import { Recipe } from '../../../database.types';
-import { Prompt } from './prompt';
 
 export interface SmartMealPlanResult {
 	selectedRecipes: string[]; // Recipe URLs
@@ -7,10 +7,27 @@ export interface SmartMealPlanResult {
 	sharedIngredients: string[];
 }
 
+export const SMART_MEAL_PLAN_SCHEMA: JsonSchema = {
+	type: 'object',
+	properties: {
+		selectedRecipes: {
+			type: 'array',
+			items: { type: 'string' },
+		},
+		reasoning: { type: 'string' },
+		sharedIngredients: {
+			type: 'array',
+			items: { type: 'string' },
+		},
+	},
+	required: ['selectedRecipes', 'reasoning', 'sharedIngredients'],
+	additionalProperties: false,
+};
+
 export function smartMealPlanPrompt(
 	recipes: readonly Recipe[],
 	numberOfMeals: number = 5
-): Prompt {
+) {
 	const recipeList = recipes
 		.map((r) => {
 			const ingredients = r.ingredients?.join(', ') || 'No ingredients listed';

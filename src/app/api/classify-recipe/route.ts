@@ -1,6 +1,7 @@
-import { llmJSON } from '@/utilities/llm';
+import { llmStructured } from '@/utilities/llm';
 import {
 	classifyRecipeDietPrompt,
+	DIETARY_CLASSIFICATION_SCHEMA,
 	DietaryClassificationResult,
 } from '@/utilities/prompts/classifyRecipeDiet';
 import { createClient } from '@/services/supabase/server';
@@ -41,7 +42,11 @@ export async function POST(request: NextRequest) {
 
 		// Classify with Claude
 		const prompt = classifyRecipeDietPrompt(recipe);
-		const result = await llmJSON<DietaryClassificationResult>(prompt);
+		const result = await llmStructured<DietaryClassificationResult>(
+			prompt.systemPrompt,
+			prompt.taskPrompt,
+			DIETARY_CLASSIFICATION_SCHEMA
+		);
 
 		if (!result) {
 			return NextResponse.json(
@@ -109,7 +114,11 @@ export async function GET() {
 		for (const recipe of recipes) {
 			try {
 				const prompt = classifyRecipeDietPrompt(recipe);
-				const result = await llmJSON<DietaryClassificationResult>(prompt);
+				const result = await llmStructured<DietaryClassificationResult>(
+					prompt.systemPrompt,
+					prompt.taskPrompt,
+					DIETARY_CLASSIFICATION_SCHEMA
+				);
 
 				if (result) {
 					// Update recipe with dietary tags

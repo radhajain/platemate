@@ -37,29 +37,39 @@ interface MealPlanDashboardProps {
 	weeklyStaples?: string[];
 }
 
-function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanDashboardProps) {
+function MealPlanContent({
+	user,
+	initialRecipes,
+	weeklyStaples = [],
+}: MealPlanDashboardProps) {
 	const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
 
 	// Core state
 	const [weeklyRecipes, setWeeklyRecipes] = useState<Recipe[]>(initialRecipes);
 	const [viewMode, setViewMode] = useState<ViewMode>(
-		initialRecipes.length > 0 ? 'plan' : 'wizard'
+		initialRecipes.length > 0 ? 'plan' : 'wizard',
 	);
 	const [likedUrls, setLikedUrls] = useState<Set<string>>(new Set());
 	const [expandedRecipeUrl, setExpandedRecipeUrl] = useState<string | null>(
-		initialRecipes.length > 0 ? initialRecipes[0].url : null
+		initialRecipes.length > 0 ? initialRecipes[0].url : null,
 	);
 
 	// Wizard state
 	const [wizardStep, setWizardStep] = useState<WizardStep>(1);
-	const [hasSpecificDishes, setHasSpecificDishes] = useState<boolean | null>(null);
+	const [hasSpecificDishes, setHasSpecificDishes] = useState<boolean | null>(
+		null,
+	);
 	const [allLikedRecipes, setAllLikedRecipes] = useState<Recipe[]>([]);
 	const [isLoadingLikedRecipes, setIsLoadingLikedRecipes] = useState(false);
 	const [manuallyChosen, setManuallyChosen] = useState<Set<string>>(new Set());
 	const [searchQuery, setSearchQuery] = useState('');
-	const [selectedMoodTags, setSelectedMoodTags] = useState<Set<string>>(new Set());
+	const [selectedMoodTags, setSelectedMoodTags] = useState<Set<string>>(
+		new Set(),
+	);
 	const [suggestedRecipes, setSuggestedRecipes] = useState<Recipe[]>([]);
-	const [selectedForPlan, setSelectedForPlan] = useState<Set<string>>(new Set());
+	const [selectedForPlan, setSelectedForPlan] = useState<Set<string>>(
+		new Set(),
+	);
 	const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 	const [suggestionReasoning, setSuggestionReasoning] = useState('');
 
@@ -88,7 +98,7 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		return allLikedRecipes.filter(
 			(recipe) =>
 				recipe.name?.toLowerCase().includes(query) ||
-				recipe.ingredients?.some((ing) => ing.toLowerCase().includes(query))
+				recipe.ingredients?.some((ing) => ing.toLowerCase().includes(query)),
 		);
 	}, [allLikedRecipes, searchQuery]);
 
@@ -123,19 +133,29 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		setIsLoadingSuggestions(true);
 		const moodString = Array.from(selectedMoodTags).join(', ');
 		const result = await getSuggestedRecipes(user.id, moodString, 10);
-		if (result) {
+		if (result && result.recipes.length > 0) {
 			// Deduplicate and exclude manually chosen recipes
 			const uniqueRecipes = result.recipes.filter(
 				(recipe, index, self) =>
 					self.findIndex((r) => r.url === recipe.url) === index &&
-					!manuallyChosen.has(recipe.url)
+					!manuallyChosen.has(recipe.url),
 			);
 			setSuggestedRecipes(uniqueRecipes);
 			setSuggestionReasoning(result.reasoning);
 			setSelectedForPlan(new Set());
+		} else if (allLikedRecipes.length > 0) {
+			// Fallback: use liked recipes if AI suggestions failed
+			const shuffled = [...allLikedRecipes]
+				.filter((r) => !manuallyChosen.has(r.url))
+				.sort(() => 0.5 - Math.random());
+			setSuggestedRecipes(shuffled.slice(0, 10));
+			setSuggestionReasoning(
+				'Showing your liked recipes (AI suggestions unavailable)',
+			);
+			setSelectedForPlan(new Set());
 		}
 		setIsLoadingSuggestions(false);
-	}, [user.id, selectedMoodTags, manuallyChosen]);
+	}, [user.id, selectedMoodTags, manuallyChosen, allLikedRecipes]);
 
 	// Toggle selected for plan
 	const toggleSelectedForPlan = useCallback((url: string) => {
@@ -157,8 +177,12 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		await saveWeeklyPlan(user.id, urls, weekStart);
 
 		// Combine recipes from both sources
-		const chosenRecipes = allLikedRecipes.filter((r) => manuallyChosen.has(r.url));
-		const aiSelectedRecipes = suggestedRecipes.filter((r) => selectedForPlan.has(r.url));
+		const chosenRecipes = allLikedRecipes.filter((r) =>
+			manuallyChosen.has(r.url),
+		);
+		const aiSelectedRecipes = suggestedRecipes.filter((r) =>
+			selectedForPlan.has(r.url),
+		);
 		const allRecipes = [...chosenRecipes];
 		for (const r of aiSelectedRecipes) {
 			if (!allRecipes.some((existing) => existing.url === r.url)) {
@@ -168,7 +192,14 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 		setWeeklyRecipes(allRecipes);
 		setViewMode('plan');
 		resetWizard();
-	}, [selectedForPlan, manuallyChosen, suggestedRecipes, allLikedRecipes, user.id, weekStart]);
+	}, [
+		selectedForPlan,
+		manuallyChosen,
+		suggestedRecipes,
+		allLikedRecipes,
+		user.id,
+		weekStart,
+	]);
 
 	// Handle removing a recipe from the plan
 	const handleRemoveFromPlan = useCallback(
@@ -176,7 +207,7 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 			await removeRecipeFromWeeklyPlan(user.id, recipeUrl, weekStart);
 			setWeeklyRecipes((prev) => prev.filter((r) => r.url !== recipeUrl));
 		},
-		[user.id, weekStart]
+		[user.id, weekStart],
 	);
 
 	// Handle like toggle
@@ -193,7 +224,7 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 			});
 			await toggleLikedRecipe(user.id, recipeUrl);
 		},
-		[user.id]
+		[user.id],
 	);
 
 	// Reset wizard state
@@ -216,7 +247,11 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 	}, [resetWizard, loadLikedRecipesForChoosing]);
 
 	// Calculate row for expanded recipe
-	const getExpandedRowIndex = (recipes: Recipe[], url: string, columns: number) => {
+	const getExpandedRowIndex = (
+		recipes: Recipe[],
+		url: string,
+		columns: number,
+	) => {
 		const index = recipes.findIndex((r) => r.url === url);
 		if (index === -1) return -1;
 		return Math.floor(index / columns);
@@ -231,7 +266,7 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 			columns?: number;
 			selectedSet?: Set<string>;
 			onSelect?: (url: string) => void;
-		} = {}
+		} = {},
 	) => {
 		const {
 			showRemove = false,
@@ -271,10 +306,14 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 									isSelected={selectedSet.has(recipe.url)}
 									onSelect={showSelect ? () => onSelect(recipe.url) : undefined}
 									showRemoveButton={showRemove}
-									onRemove={showRemove ? () => handleRemoveFromPlan(recipe.url) : undefined}
+									onRemove={
+										showRemove
+											? () => handleRemoveFromPlan(recipe.url)
+											: undefined
+									}
 									onClick={() =>
 										setExpandedRecipeUrl(
-											expandedRecipeUrl === recipe.url ? null : recipe.url
+											expandedRecipeUrl === recipe.url ? null : recipe.url,
 										)
 									}
 									isExpanded={expandedRecipeUrl === recipe.url}
@@ -301,7 +340,9 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 	// Get selected recipes for final review
 	const getSelectedRecipes = useCallback(() => {
 		const chosen = allLikedRecipes.filter((r) => manuallyChosen.has(r.url));
-		const aiSelected = suggestedRecipes.filter((r) => selectedForPlan.has(r.url));
+		const aiSelected = suggestedRecipes.filter((r) =>
+			selectedForPlan.has(r.url),
+		);
 		const all = [...chosen];
 		for (const r of aiSelected) {
 			if (!all.some((existing) => existing.url === r.url)) {
@@ -322,7 +363,8 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 						Week of {format(weekStart, 'MMMM d')}
 					</h1>
 					<p className="text-charcoal-muted">
-						{weeklyRecipes.length} meal{weeklyRecipes.length !== 1 ? 's' : ''} planned
+						{weeklyRecipes.length} meal{weeklyRecipes.length !== 1 ? 's' : ''}{' '}
+						planned
 					</p>
 				</div>
 				<div className="flex gap-2">
@@ -378,7 +420,10 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 
 					<div>
 						<h2 className="section-header mb-4">Shopping List</h2>
-						<GroceryList recipes={weeklyRecipes} weeklyStaples={weeklyStaples} />
+						<GroceryList
+							recipes={weeklyRecipes}
+							weeklyStaples={weeklyStaples}
+						/>
 					</div>
 				</div>
 			)}
@@ -423,7 +468,9 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 					{/* Progress bar */}
 					<div className="bg-white rounded-xl p-4">
 						<div className="flex items-center justify-between mb-2">
-							<span className="text-sm text-charcoal-muted">Step {wizardStep} of 4</span>
+							<span className="text-sm text-charcoal-muted">
+								Step {wizardStep} of 4
+							</span>
 							<span className="text-sm text-charcoal-muted">
 								{totalSelected} recipe{totalSelected !== 1 ? 's' : ''} selected
 							</span>
@@ -443,7 +490,8 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 								Do you have specific dishes in mind?
 							</h2>
 							<p className="text-charcoal-muted mb-8">
-								Select recipes you know you want to cook this week, or skip to get AI suggestions.
+								Select recipes you know you want to cook this week, or skip to
+								get suggestions.
 							</p>
 							<div className="flex flex-col sm:flex-row gap-4 justify-center">
 								<button
@@ -478,7 +526,8 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 											Choose Your Own Meals
 										</h2>
 										<p className="text-sm text-charcoal-muted">
-											Select recipes from your favorites ({manuallyChosen.size} selected)
+											Select recipes from your favorites ({manuallyChosen.size}{' '}
+											selected)
 										</p>
 									</div>
 									<div className="flex gap-2">
@@ -525,13 +574,16 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 
 							{isLoadingLikedRecipes && (
 								<div className="flex items-center justify-center py-12">
-									<div className="text-charcoal-muted">Loading your recipes...</div>
+									<div className="text-charcoal-muted">
+										Loading your recipes...
+									</div>
 								</div>
 							)}
 
 							{!isLoadingLikedRecipes && allLikedRecipes.length === 0 && (
 								<div className="text-center py-12 text-charcoal-muted">
-									No liked recipes found. Browse recipes and add some favorites first.
+									No liked recipes found. Browse recipes and add some favorites
+									first.
 								</div>
 							)}
 
@@ -549,7 +601,7 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 											onSelect={() => toggleManuallyChosen(recipe.url)}
 											onClick={() =>
 												setExpandedRecipeUrl(
-													expandedRecipeUrl === recipe.url ? null : recipe.url
+													expandedRecipeUrl === recipe.url ? null : recipe.url,
 												)
 											}
 											isExpanded={expandedRecipeUrl === recipe.url}
@@ -558,11 +610,13 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 								</div>
 							)}
 
-							{!isLoadingLikedRecipes && filteredRecipes.length === 0 && allLikedRecipes.length > 0 && (
-								<div className="text-center py-12 text-charcoal-muted">
-									No recipes match your search.
-								</div>
-							)}
+							{!isLoadingLikedRecipes &&
+								filteredRecipes.length === 0 &&
+								allLikedRecipes.length > 0 && (
+									<div className="text-center py-12 text-charcoal-muted">
+										No recipes match your search.
+									</div>
+								)}
 						</div>
 					)}
 
@@ -576,7 +630,8 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 											What are you in the mood for?
 										</h2>
 										<p className="text-sm text-charcoal-muted">
-											Select all that apply - we&apos;ll suggest recipes that match
+											Select all that apply - we&apos;ll suggest recipes that
+											match
 										</p>
 									</div>
 									<div className="flex gap-2">
@@ -660,7 +715,8 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 											Your Meal Plan
 										</h2>
 										<p className="text-sm text-charcoal-muted">
-											{totalSelected} recipe{totalSelected !== 1 ? 's' : ''} selected
+											{totalSelected} recipe{totalSelected !== 1 ? 's' : ''}{' '}
+											selected
 										</p>
 									</div>
 									<div className="flex gap-2">
@@ -709,7 +765,9 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 							{/* AI Suggestions */}
 							{isLoadingSuggestions && (
 								<div className="flex items-center justify-center py-12">
-									<div className="text-charcoal-muted">Finding the perfect recipes...</div>
+									<div className="text-charcoal-muted">
+										Finding the perfect recipes...
+									</div>
 								</div>
 							)}
 
@@ -732,17 +790,22 @@ function MealPlanContent({ user, initialRecipes, weeklyStaples = [] }: MealPlanD
 								</div>
 							)}
 
-							{!isLoadingSuggestions && suggestedRecipes.length === 0 && manuallyChosen.size === 0 && (
-								<div className="text-center py-12 text-charcoal-muted">
-									No suggestions available. Try selecting different mood tags.
-								</div>
-							)}
+							{!isLoadingSuggestions &&
+								suggestedRecipes.length === 0 &&
+								manuallyChosen.size === 0 && (
+									<div className="text-center py-12 text-charcoal-muted">
+										No suggestions available. Try selecting different mood tags.
+									</div>
+								)}
 
 							{/* Final grocery list preview */}
 							{totalSelected > 0 && (
 								<div className="bg-cream-light rounded-xl p-6">
 									<h3 className="section-header mb-4">Grocery List Preview</h3>
-									<GroceryList recipes={getSelectedRecipes()} weeklyStaples={weeklyStaples} />
+									<GroceryList
+										recipes={getSelectedRecipes()}
+										weeklyStaples={weeklyStaples}
+									/>
 								</div>
 							)}
 						</div>
