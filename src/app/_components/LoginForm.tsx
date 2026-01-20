@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { login, signup } from '../login/actions';
+import { login, saveQuizResultsForUser, signup } from '../login/actions';
 
 export default function LoginForm() {
 	const [errors, setErrors] = useState({
@@ -12,6 +12,7 @@ export default function LoginForm() {
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
+	const [successMessage, setSuccessMessage] = useState('');
 
 	const validateForm = (): boolean => {
 		let isValid = true;
@@ -27,6 +28,7 @@ export default function LoginForm() {
 		}
 
 		setErrors(newErrors);
+		setSuccessMessage('');
 		return isValid;
 	};
 
@@ -34,18 +36,66 @@ export default function LoginForm() {
 		event.preventDefault();
 		const validationPassed = validateForm();
 		if (!validationPassed) return;
+
 		setIsLoading(true);
-		await login(email, password);
-		setIsLoading(false);
+		setErrors({ email: '', password: '', general: '' });
+
+		try {
+			const result = await login(email, password);
+			if (!result.success && result.error) {
+				setErrors((prev) => ({ ...prev, general: result.error || '' }));
+			}
+			// If successful, the server action will redirect
+		} catch {
+			// Redirect throws an error, which is expected behavior
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	const handleSignup = async (event: React.MouseEvent) => {
 		event.preventDefault();
 		const validationPassed = validateForm();
 		if (!validationPassed) return;
+
 		setIsLoading(true);
-		await signup(email, password);
-		setIsLoading(false);
+		setErrors({ email: '', password: '', general: '' });
+
+		try {
+			const result = await signup(email, password);
+
+			if (!result.success && result.error) {
+				setErrors((prev) => ({ ...prev, general: result.error || '' }));
+				return;
+			}
+
+			if (result.success && result.userId) {
+				// Save quiz results if they exist in localStorage
+				const quizResults = localStorage.getItem('quizResults');
+				if (quizResults) {
+					try {
+						const likedRecipes = JSON.parse(quizResults);
+						if (Array.isArray(likedRecipes) && likedRecipes.length > 0) {
+							await saveQuizResultsForUser(result.userId, likedRecipes);
+						}
+						localStorage.removeItem('quizResults');
+					} catch {
+						// Ignore parse errors
+					}
+				}
+
+				setSuccessMessage(
+					'Account created! Please check your email to confirm your account.'
+				);
+			}
+		} catch {
+			setErrors((prev) => ({
+				...prev,
+				general: 'An unexpected error occurred. Please try again.',
+			}));
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	return (
@@ -113,9 +163,19 @@ export default function LoginForm() {
 						</div>
 
 						{errors.general && (
-							<p className="text-sm text-red-500 text-center">
-								{errors.general}
-							</p>
+							<div className="bg-red-50 border border-red-200 rounded-lg p-3">
+								<p className="text-sm text-red-600 text-center">
+									{errors.general}
+								</p>
+							</div>
+						)}
+
+						{successMessage && (
+							<div className="bg-green-50 border border-green-200 rounded-lg p-3">
+								<p className="text-sm text-green-600 text-center">
+									{successMessage}
+								</p>
+							</div>
 						)}
 
 						<div className="space-y-3 pt-2">
