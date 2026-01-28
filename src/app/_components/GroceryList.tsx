@@ -195,20 +195,24 @@ export function GroceryList({ recipes, weeklyStaples = [] }: GroceryListProps) {
 	return (
 		<div className="bg-white rounded-xl overflow-hidden">
 			{/* Header */}
-			<div className="p-4 border-b border-cream-dark flex items-center justify-between">
-				<div>
-					<h2 className="text-xl font-semibold text-charcoal">Grocery List</h2>
-					<p className="text-sm text-charcoal-muted">
-						{checkedCount} of {totalItems} items checked
-					</p>
-				</div>
-				<div className="flex gap-2">
-					<Button variant="ghost" onClick={clearChecked}>
-						Clear Checked
-					</Button>
-					<Button variant="primary" onClick={copyToClipboard}>
-						Copy List
-					</Button>
+			<div className="p-4 border-b border-cream-dark">
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+					<div>
+						<h2 className="text-lg sm:text-xl font-semibold text-charcoal">Grocery List</h2>
+						<p className="text-sm text-charcoal-muted">
+							{checkedCount} of {totalItems} items checked
+						</p>
+					</div>
+					<div className="flex gap-2">
+						<Button variant="ghost" onClick={clearChecked}>
+							<span className="hidden sm:inline">Clear Checked</span>
+							<span className="sm:hidden">Clear</span>
+						</Button>
+						<Button variant="primary" onClick={copyToClipboard}>
+							<span className="hidden sm:inline">Copy List</span>
+							<span className="sm:hidden">Copy</span>
+						</Button>
+					</div>
 				</div>
 			</div>
 

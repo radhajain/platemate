@@ -1,202 +1,165 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
-import { login, saveQuizResultsForUser, signup } from '../login/actions';
+import { createClient } from '@/services/supabase/client';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function LoginForm() {
-	const [errors, setErrors] = useState({
-		email: '',
-		password: '',
-		general: '',
-	});
-	const [email, setEmail] = useState('');
-	const [password, setPassword] = useState('');
-	const [isLoading, setIsLoading] = useState(false);
-	const [successMessage, setSuccessMessage] = useState('');
+	const supabase = createClient();
+	const router = useRouter();
 
-	const validateForm = (): boolean => {
-		let isValid = true;
-		const newErrors = { email: '', password: '', general: '' };
-
-		if (!isValidEmail(email)) {
-			newErrors.email = 'Please enter a valid email address.';
-			isValid = false;
-		}
-		if (!isValidPassword(password)) {
-			newErrors.password = 'Password must be at least 6 characters long.';
-			isValid = false;
-		}
-
-		setErrors(newErrors);
-		setSuccessMessage('');
-		return isValid;
-	};
-
-	const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		const validationPassed = validateForm();
-		if (!validationPassed) return;
-
-		setIsLoading(true);
-		setErrors({ email: '', password: '', general: '' });
-
-		try {
-			const result = await login(email, password);
-			if (!result.success && result.error) {
-				setErrors((prev) => ({ ...prev, general: result.error || '' }));
-			}
-			// If successful, the server action will redirect
-		} catch {
-			// Redirect throws an error, which is expected behavior
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	const handleSignup = async (event: React.MouseEvent) => {
-		event.preventDefault();
-		const validationPassed = validateForm();
-		if (!validationPassed) return;
-
-		setIsLoading(true);
-		setErrors({ email: '', password: '', general: '' });
-
-		try {
-			const result = await signup(email, password);
-
-			if (!result.success && result.error) {
-				setErrors((prev) => ({ ...prev, general: result.error || '' }));
-				return;
-			}
-
-			if (result.success && result.userId) {
-				// Save quiz results if they exist in localStorage
-				const quizResults = localStorage.getItem('quizResults');
+	useEffect(() => {
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((event, session) => {
+			if (event === 'SIGNED_IN' && session?.user) {
+				// Handle quiz results if they exist in localStorage
+				const quizResults = localStorage.getItem('likedRecipesResults');
 				if (quizResults) {
 					try {
 						const likedRecipes = JSON.parse(quizResults);
 						if (Array.isArray(likedRecipes) && likedRecipes.length > 0) {
-							await saveQuizResultsForUser(result.userId, likedRecipes);
+							// Save quiz results via API
+							fetch('/api/save-quiz-results', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ urls: likedRecipes }),
+							}).then(() => {
+								localStorage.removeItem('likedRecipesResults');
+							});
 						}
-						localStorage.removeItem('quizResults');
 					} catch {
 						// Ignore parse errors
 					}
 				}
 
-				setSuccessMessage(
-					'Account created! Please check your email to confirm your account.'
-				);
+				// Redirect to user's dashboard
+				router.push(`/${session.user.id}`);
+				router.refresh();
 			}
-		} catch {
-			setErrors((prev) => ({
-				...prev,
-				general: 'An unexpected error occurred. Please try again.',
-			}));
-		} finally {
-			setIsLoading(false);
-		}
-	};
+		});
+
+		return () => subscription.unsubscribe();
+	}, [supabase, router]);
 
 	return (
-		<div className="flex items-center justify-center bg-cream px-4 -my-8 min-h-[calc(100vh-8rem)]">
+		<div className="flex items-center justify-center bg-cream -my-8 min-h-[calc(100vh-8rem)]">
 			<div className="w-full max-w-md">
-				<div className="bg-white rounded-2xl shadow-lg p-8">
-					<div className="text-center mb-8">
-						<h1 className="text-2xl font-semibold text-charcoal mb-2">
-							Welcome Back
+				<div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
+					<div className="text-center mb-6 sm:mb-8">
+						<h1 className="text-xl sm:text-2xl font-semibold text-charcoal mb-2">
+							Welcome to Plate Mate
 						</h1>
 						<p className="text-charcoal-muted text-sm">
 							Sign in to continue to your meal planner
 						</p>
 					</div>
 
-					<form onSubmit={(event) => handleLogin(event)} className="space-y-5">
-						<div>
-							<label
-								htmlFor="email"
-								className="block text-sm font-medium text-charcoal mb-1.5"
-							>
-								Email
-							</label>
-							<input
-								id="email"
-								name="email"
-								type="email"
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-								required
-								className="w-full px-4 py-3 rounded-lg border border-cream-dark bg-cream-light
-									text-charcoal placeholder-charcoal-muted
-									focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-									transition-all duration-200"
-								placeholder="you@example.com"
-							/>
-							{errors.email && (
-								<p className="mt-1.5 text-sm text-red-500">{errors.email}</p>
-							)}
-						</div>
-
-						<div>
-							<label
-								htmlFor="password"
-								className="block text-sm font-medium text-charcoal mb-1.5"
-							>
-								Password
-							</label>
-							<input
-								id="password"
-								name="password"
-								type="password"
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-								required
-								className="w-full px-4 py-3 rounded-lg border border-cream-dark bg-cream-light
-									text-charcoal placeholder-charcoal-muted
-									focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-									transition-all duration-200"
-								placeholder="Enter your password"
-							/>
-							{errors.password && (
-								<p className="mt-1.5 text-sm text-red-500">{errors.password}</p>
-							)}
-						</div>
-
-						{errors.general && (
-							<div className="bg-red-50 border border-red-200 rounded-lg p-3">
-								<p className="text-sm text-red-600 text-center">
-									{errors.general}
-								</p>
-							</div>
-						)}
-
-						{successMessage && (
-							<div className="bg-green-50 border border-green-200 rounded-lg p-3">
-								<p className="text-sm text-green-600 text-center">
-									{successMessage}
-								</p>
-							</div>
-						)}
-
-						<div className="space-y-3 pt-2">
-							<button
-								type="submit"
-								disabled={isLoading}
-								className="w-full btn-primary-filled py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-							>
-								{isLoading ? 'Signing in...' : 'Log in'}
-							</button>
-
-							<button
-								type="button"
-								onClick={(event) => handleSignup(event)}
-								disabled={isLoading}
-								className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-							>
-								{isLoading ? 'Creating account...' : 'Sign up'}
-							</button>
-						</div>
-					</form>
+					<Auth
+						supabaseClient={supabase}
+						appearance={{
+							theme: ThemeSupa,
+							variables: {
+								default: {
+									colors: {
+										brand: '#22c55e',
+										brandAccent: '#16a34a',
+										brandButtonText: 'white',
+										inputBackground: '#fafaf9',
+										inputBorder: '#e7e5e4',
+										inputBorderFocus: '#22c55e',
+										inputBorderHover: '#22c55e',
+										inputText: '#1c1917',
+										inputPlaceholder: '#78716c',
+									},
+									borderWidths: {
+										buttonBorderWidth: '2px',
+										inputBorderWidth: '1px',
+									},
+									radii: {
+										borderRadiusButton: '9999px',
+										buttonBorderRadius: '9999px',
+										inputBorderRadius: '0.5rem',
+									},
+									fontSizes: {
+										baseBodySize: '14px',
+										baseInputSize: '14px',
+										baseLabelSize: '14px',
+										baseButtonSize: '14px',
+									},
+									fonts: {
+										bodyFontFamily:
+											'var(--font-geist-sans), system-ui, sans-serif',
+										buttonFontFamily:
+											'var(--font-geist-sans), system-ui, sans-serif',
+										inputFontFamily:
+											'var(--font-geist-sans), system-ui, sans-serif',
+										labelFontFamily:
+											'var(--font-geist-sans), system-ui, sans-serif',
+									},
+								},
+							},
+							style: {
+								button: {
+									fontWeight: '500',
+									textTransform: 'uppercase',
+									letterSpacing: '0.1em',
+									padding: '12px 24px',
+								},
+								input: {
+									padding: '12px 16px',
+								},
+								label: {
+									color: '#1c1917',
+									fontWeight: '500',
+									marginBottom: '6px',
+								},
+								anchor: {
+									color: '#22c55e',
+									fontWeight: '500',
+								},
+								message: {
+									color: '#dc2626',
+									fontSize: '14px',
+								},
+							},
+						}}
+						providers={[]}
+						redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
+						view="sign_in"
+						showLinks={true}
+						localization={{
+							variables: {
+								sign_in: {
+									email_label: 'Email',
+									password_label: 'Password',
+									email_input_placeholder: 'you@example.com',
+									password_input_placeholder: 'Enter your password',
+									button_label: 'Sign In',
+									link_text: "Don't have an account? Sign up",
+								},
+								sign_up: {
+									email_label: 'Email',
+									password_label: 'Password',
+									email_input_placeholder: 'you@example.com',
+									password_input_placeholder:
+										'Create a password (min 6 characters)',
+									button_label: 'Sign Up',
+									link_text: 'Already have an account? Sign in',
+									confirmation_text:
+										'Check your email for the confirmation link',
+								},
+								forgotten_password: {
+									email_label: 'Email',
+									email_input_placeholder: 'you@example.com',
+									button_label: 'Send Reset Instructions',
+									link_text: 'Back to sign in',
+								},
+							},
+						}}
+					/>
 				</div>
 
 				<p className="text-center text-charcoal-muted text-sm mt-6">
@@ -205,12 +168,4 @@ export default function LoginForm() {
 			</div>
 		</div>
 	);
-}
-
-function isValidEmail(email: string): boolean {
-	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function isValidPassword(password: string): boolean {
-	return password.length >= 6;
 }

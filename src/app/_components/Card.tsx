@@ -258,9 +258,9 @@ export function RecipeDetailPanel({
 }: RecipeDetailPanelProps) {
 	return (
 		<div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-			<div className="grid md:grid-cols-2 gap-0">
+			<div className="flex flex-col md:grid md:grid-cols-2 gap-0">
 				{/* Image side */}
-				<div className="relative aspect-video md:aspect-auto md:h-full min-h-[300px]">
+				<div className="relative aspect-video md:aspect-auto md:h-full min-h-[200px] sm:min-h-[300px]">
 					{recipe.image ? (
 						<Image
 							src={recipe.image}
@@ -287,7 +287,7 @@ export function RecipeDetailPanel({
 				</div>
 
 				{/* Content side */}
-				<div className="p-6 md:p-8 overflow-y-auto max-h-[600px]">
+				<div className="p-4 sm:p-6 md:p-8 overflow-y-auto max-h-[400px] sm:max-h-[600px]">
 					{/* Header with close button */}
 					<div className="flex items-start justify-between mb-4">
 						<div className="flex-1">

@@ -59,16 +59,16 @@ export default async function Home() {
 	return (
 		<div className="flex flex-col justify-between gap-6 -my-8 min-h-[calc(100vh-8rem)] py-6">
 			{/* Hero + Recipe Images */}
-			<section className="flex flex-col lg:flex-row items-center gap-20">
+			<section className="flex flex-col lg:flex-row items-center gap-8 lg:gap-20">
 				<div className="flex-1 text-center lg:text-left max-w-xl">
-					<h1 className="text-3xl md:text-4xl font-bold text-charcoal mb-3 leading-tight">
+					<h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-charcoal mb-3 leading-tight">
 						Meal planning for
 						<br />
 						<span className="text-primary">
 							busy people that want fresh and healthy food
 						</span>
 					</h1>
-					<p className="text-charcoal-muted mb-5 text-sm md:text-base">
+					<p className="text-charcoal-muted mb-5 text-sm md:text-base px-4 lg:px-0">
 						But want to minimize waste, save time grocery shopping and avoid
 						decision fatigue of choosing recipes.
 					</p>
@@ -83,39 +83,39 @@ export default async function Home() {
 				</div>
 
 				{/* Floating Recipe Images + Grocery List */}
-				<div className="relative w-full max-w-sm h-64 lg:h-72">
+				<div className="relative w-full max-w-xs sm:max-w-sm h-56 sm:h-64 lg:h-72 mx-auto lg:mx-0">
 					{/* Main large image */}
-					<div className="absolute top-0 right-0 w-40 h-40 rounded-xl overflow-hidden shadow-lg z-10 animate-float-slow">
+					<div className="absolute top-0 right-0 sm:right-0 w-32 sm:w-40 h-32 sm:h-40 rounded-xl overflow-hidden shadow-lg z-10 animate-float-slow">
 						<Image
 							src={SAMPLE_RECIPES[0].image}
 							alt={SAMPLE_RECIPES[0].name}
 							fill
 							className="object-cover"
-							sizes="160px"
+							sizes="(max-width: 640px) 128px, 160px"
 						/>
 					</div>
 					{/* Second image - offset left */}
-					<div className="absolute top-12 left-4 w-32 h-32 rounded-xl overflow-hidden shadow-lg z-20 animate-float-medium">
+					<div className="absolute top-8 sm:top-12 left-0 sm:left-4 w-24 sm:w-32 h-24 sm:h-32 rounded-xl overflow-hidden shadow-lg z-20 animate-float-medium">
 						<Image
 							src={SAMPLE_RECIPES[1].image}
 							alt={SAMPLE_RECIPES[1].name}
 							fill
 							className="object-cover"
-							sizes="128px"
+							sizes="(max-width: 640px) 96px, 128px"
 						/>
 					</div>
 					{/* Third image - bottom right */}
-					<div className="absolute bottom-0 right-8 w-28 h-28 rounded-xl overflow-hidden shadow-lg z-10 animate-float-fast">
+					<div className="absolute bottom-0 right-4 sm:right-8 w-24 sm:w-28 h-24 sm:h-28 rounded-xl overflow-hidden shadow-lg z-10 animate-float-fast">
 						<Image
 							src={SAMPLE_RECIPES[2].image}
 							alt={SAMPLE_RECIPES[2].name}
 							fill
 							className="object-cover"
-							sizes="112px"
+							sizes="(max-width: 640px) 96px, 112px"
 						/>
 					</div>
 					{/* Grocery list graphic - bottom left */}
-					<div className="absolute bottom-4 left-0 z-30 animate-float-grocery">
+					<div className="absolute bottom-2 sm:bottom-4 left-0 z-30 animate-float-grocery scale-90 sm:scale-100 origin-bottom-left">
 						<GroceryListGraphic />
 					</div>
 				</div>

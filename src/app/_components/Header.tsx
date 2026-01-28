@@ -50,6 +50,44 @@ function UserIcon() {
 	);
 }
 
+function MenuIcon() {
+	return (
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			fill="none"
+			viewBox="0 0 24 24"
+			strokeWidth={1.5}
+			stroke="currentColor"
+			className="w-6 h-6"
+		>
+			<path
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+			/>
+		</svg>
+	);
+}
+
+function CloseIcon() {
+	return (
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			fill="none"
+			viewBox="0 0 24 24"
+			strokeWidth={1.5}
+			stroke="currentColor"
+			className="w-6 h-6"
+		>
+			<path
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				d="M6 18L18 6M6 6l12 12"
+			/>
+		</svg>
+	);
+}
+
 export function Header({
 	isLoggedIn,
 	userEmail,
@@ -59,7 +97,9 @@ export function Header({
 	const pathname = usePathname();
 	const router = useRouter();
 	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
+	const mobileMenuRef = useRef<HTMLDivElement>(null);
 
 	const isActive = (path: string) => pathname === path;
 
@@ -74,11 +114,22 @@ export function Header({
 			) {
 				setDropdownOpen(false);
 			}
+			if (
+				mobileMenuRef.current &&
+				!mobileMenuRef.current.contains(event.target as Node)
+			) {
+				setMobileMenuOpen(false);
+			}
 		}
 
 		document.addEventListener('mousedown', handleClickOutside);
 		return () => document.removeEventListener('mousedown', handleClickOutside);
 	}, []);
+
+	// Close mobile menu on route change
+	useEffect(() => {
+		setMobileMenuOpen(false);
+	}, [pathname]);
 
 	const handleSignOut = async () => {
 		const supabase = createClient();
@@ -88,15 +139,16 @@ export function Header({
 
 	return (
 		<header className="w-full bg-cream-light border-b border-cream-dark">
-			<div className="max-w-7xl mx-auto px-6 py-4">
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
 				<div className="flex items-center justify-between">
 					<Link
 						href="/"
-						className="text-2xl font-bold tracking-tight text-primary"
+						className="text-xl sm:text-2xl font-bold tracking-tight text-primary"
 					>
 						PLATE MATE
 					</Link>
 
+					{/* Desktop Navigation */}
 					<nav className="hidden md:flex items-center gap-8">
 						<Link
 							href="/recipes"
@@ -114,7 +166,8 @@ export function Header({
 						)}
 					</nav>
 
-					<div className="flex items-center gap-4">
+					{/* Desktop Auth Section */}
+					<div className="hidden md:flex items-center gap-4">
 						{isLoggedIn ? (
 							<div className="relative" ref={dropdownRef}>
 								<button
@@ -155,6 +208,76 @@ export function Header({
 								<Link href="/quiz" className="btn-primary">
 									Get Started
 								</Link>
+							</div>
+						)}
+					</div>
+
+					{/* Mobile Menu Button */}
+					<div className="md:hidden" ref={mobileMenuRef}>
+						<button
+							onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+							className="p-2 text-charcoal hover:text-primary transition-colors"
+							aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+						>
+							{mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+						</button>
+
+						{/* Mobile Menu Dropdown */}
+						{mobileMenuOpen && (
+							<div className="absolute top-full left-0 right-0 bg-white border-b border-cream-dark shadow-lg z-50">
+								<div className="px-4 py-4 space-y-3">
+									<Link
+										href="/recipes"
+										className={`block py-2 text-base font-medium ${
+											isActive('/recipes')
+												? 'text-primary-dark'
+												: 'text-charcoal hover:text-primary'
+										}`}
+									>
+										Recipes
+									</Link>
+									{isLoggedIn && (
+										<Link
+											href={`/${userId}`}
+											className={`block py-2 text-base font-medium ${
+												isActive(`/${userId}`)
+													? 'text-primary-dark'
+													: 'text-charcoal hover:text-primary'
+											}`}
+										>
+											Meal Plan
+										</Link>
+									)}
+									<hr className="border-cream-dark" />
+									{isLoggedIn ? (
+										<>
+											<Link
+												href="/profile"
+												className="block py-2 text-base font-medium text-charcoal hover:text-primary"
+											>
+												Profile Settings
+											</Link>
+											<button
+												onClick={handleSignOut}
+												className="block w-full text-left py-2 text-base font-medium text-red-600 hover:text-red-700"
+											>
+												Sign Out
+											</button>
+										</>
+									) : (
+										<div className="flex flex-col gap-3 pt-2">
+											<Link
+												href="/login"
+												className="block py-2 text-base font-medium text-charcoal hover:text-primary"
+											>
+												Login
+											</Link>
+											<Link href="/quiz" className="btn-primary-filled text-center">
+												Get Started
+											</Link>
+										</div>
+									)}
+								</div>
 							</div>
 						)}
 					</div>

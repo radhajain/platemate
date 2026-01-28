@@ -15,6 +15,11 @@ import {
 	StructuredGroceryList,
 	structuredGroceryListPrompt,
 } from '@/utilities/prompts/dedupeGroceryList';
+import {
+	MEAL_PREP_INSTRUCTIONS_SCHEMA,
+	MealPrepInstructions,
+	mealPrepInstructionsPrompt,
+} from '@/utilities/prompts/mealPrepInstructions';
 import { SupabaseClient, User } from '@supabase/supabase-js';
 import { Recipe, UserProfile } from '../../../database.types';
 import { createClient } from './server';
@@ -178,7 +183,69 @@ export async function toggleLikedRecipe(
 	}
 }
 
+export async function likeAllRecipes(
+	userId: string,
+	recipeUrls: string[],
+): Promise<boolean> {
+	const supabase = await createClient();
+
+	// Get currently liked recipes to avoid duplicates
+	const currentlyLiked = await getUserLikedRecipeUrls(userId);
+
+	// Filter out already liked recipes
+	const newLikes = recipeUrls.filter((url) => !currentlyLiked.has(url));
+
+	if (newLikes.length === 0) {
+		return true; // Nothing new to add
+	}
+
+	const { error } = await supabase.from('user_liked_recipes').insert(
+		newLikes.map((url) => ({
+			user_id: userId,
+			recipe_url: url,
+		})),
+	);
+
+	if (error) {
+		console.error('Error liking all recipes:', error);
+		return false;
+	}
+
+	return true;
+}
+
+export async function unlikeAllRecipes(userId: string): Promise<boolean> {
+	const supabase = await createClient();
+
+	const { error } = await supabase
+		.from('user_liked_recipes')
+		.delete()
+		.eq('user_id', userId);
+
+	if (error) {
+		console.error('Error unliking all recipes:', error);
+		return false;
+	}
+
+	return true;
+}
+
 // ==================== Recipe Filtering Functions ====================
+
+export async function getAllRecipes(): Promise<Recipe[]> {
+	const supabase = await createClient();
+	const { data: recipes, error } = await supabase
+		.from('recipes')
+		.select('*')
+		.order('name');
+
+	if (error) {
+		console.error('Error fetching recipes:', error);
+		return [];
+	}
+
+	return recipes || [];
+}
 
 export async function getFilteredRecipes(userId: string): Promise<Recipe[]> {
 	const supabase = await createClient();
@@ -491,6 +558,23 @@ export async function generateGroceryList(
 		prompt.systemPrompt,
 		prompt.taskPrompt,
 		STRUCTURED_GROCERY_LIST_SCHEMA,
+	);
+
+	return result || null;
+}
+
+// ==================== Meal Prep Functions ====================
+
+export async function generateMealPrepInstructions(
+	recipes: Recipe[],
+): Promise<MealPrepInstructions | null> {
+	if (recipes.length === 0) return null;
+
+	const prompt = mealPrepInstructionsPrompt(recipes);
+	const result = await llmStructured<MealPrepInstructions>(
+		prompt.systemPrompt,
+		prompt.taskPrompt,
+		MEAL_PREP_INSTRUCTIONS_SCHEMA,
 	);
 
 	return result || null;

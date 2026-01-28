@@ -8,14 +8,18 @@ import {
 	saveWeeklyPlan,
 	toggleLikedRecipe,
 } from '@/services/supabase/api';
+import { calculateIngredientStats } from '@/utilities/ingredientStats';
 import { User } from '@supabase/supabase-js';
 import { format, startOfWeek } from 'date-fns';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Recipe } from '../../../database.types';
 import { RecipeCard, RecipeDetailPanel } from './Card';
 import { GroceryList } from './GroceryList';
+import { IngredientStats } from './IngredientStats';
+import { MealPrepInstructions } from './MealPrepInstructions';
 
 type ViewMode = 'plan' | 'wizard';
+type SidebarTab = 'shopping' | 'prep';
 type WizardStep = 1 | 2 | 3 | 4;
 
 const MOOD_TAGS = [
@@ -53,6 +57,7 @@ function MealPlanContent({
 	const [expandedRecipeUrl, setExpandedRecipeUrl] = useState<string | null>(
 		initialRecipes.length > 0 ? initialRecipes[0].url : null,
 	);
+	const [sidebarTab, setSidebarTab] = useState<SidebarTab>('shopping');
 
 	// Wizard state
 	const [wizardStep, setWizardStep] = useState<WizardStep>(1);
@@ -354,76 +359,179 @@ function MealPlanContent({
 
 	const totalSelected = manuallyChosen.size + selectedForPlan.size;
 
+	// Calculate ingredient stats for the current selection
+	const ingredientStats = useMemo(
+		() => calculateIngredientStats(weeklyRecipes),
+		[weeklyRecipes]
+	);
+
+	const selectedRecipesStats = useMemo(
+		() => calculateIngredientStats(getSelectedRecipes()),
+		[getSelectedRecipes]
+	);
+
 	return (
-		<div className="flex flex-col gap-8">
+		<div className="flex flex-col gap-6">
 			{/* Header */}
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-				<div>
-					<h1 className="text-2xl font-bold text-charcoal">
-						Week of {format(weekStart, 'MMMM d')}
-					</h1>
-					<p className="text-charcoal-muted">
-						{weeklyRecipes.length} meal{weeklyRecipes.length !== 1 ? 's' : ''}{' '}
-						planned
-					</p>
-				</div>
-				<div className="flex gap-2">
-					{viewMode === 'wizard' && (
-						<button
-							onClick={() => {
-								setViewMode('plan');
-								resetWizard();
-							}}
-							className="btn-primary"
-						>
-							Cancel
-						</button>
-					)}
-					{viewMode === 'plan' && (
-						<button onClick={startWizard} className="btn-primary-filled">
-							{weeklyRecipes.length > 0 ? 'Modify Plan' : 'Create Plan'}
-						</button>
-					)}
+			<div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm">
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+					<div>
+						<div className="flex items-center gap-3 mb-1">
+							<h1 className="text-xl sm:text-2xl font-bold text-charcoal">
+								Week of {format(weekStart, 'MMMM d')}
+							</h1>
+							{viewMode === 'plan' && weeklyRecipes.length > 0 && (
+								<span className="px-2.5 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
+									{weeklyRecipes.length} meal
+									{weeklyRecipes.length !== 1 ? 's' : ''}
+								</span>
+							)}
+						</div>
+						{viewMode === 'plan' && weeklyRecipes.length > 0 && (
+							<div className="flex items-center gap-4 text-sm mt-2">
+								<div className="flex items-center gap-1.5">
+									<svg
+										className="w-4 h-4 text-primary"
+										xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+										<line x1="3" y1="6" x2="21" y2="6" />
+										<path d="M16 10a4 4 0 0 1-8 0" />
+									</svg>
+									<span className="text-charcoal font-medium">
+										{ingredientStats.totalUniqueIngredients}
+									</span>
+									<span className="text-charcoal-muted">ingredients to buy</span>
+								</div>
+								{ingredientStats.overlappingIngredients.length > 0 && (
+									<div className="flex items-center gap-1.5">
+										<svg
+											className="w-4 h-4 text-green-600"
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="2"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										>
+											<circle cx="9" cy="12" r="5" />
+											<circle cx="15" cy="12" r="5" />
+										</svg>
+										<span className="text-green-600 font-medium">
+											{ingredientStats.overlappingIngredients.length}
+										</span>
+										<span className="text-charcoal-muted">shared across recipes</span>
+									</div>
+								)}
+							</div>
+						)}
+						{viewMode === 'plan' && weeklyRecipes.length === 0 && (
+							<p className="text-charcoal-muted text-sm">
+								Plan your meals to get a smart grocery list
+							</p>
+						)}
+					</div>
+					<div className="flex gap-2">
+						{viewMode === 'wizard' && (
+							<button
+								onClick={() => {
+									setViewMode('plan');
+									resetWizard();
+								}}
+								className="btn-primary"
+							>
+								Cancel
+							</button>
+						)}
+						{viewMode === 'plan' && (
+							<button onClick={startWizard} className="btn-primary-filled">
+								{weeklyRecipes.length > 0 ? 'Modify Plan' : 'Create Plan'}
+							</button>
+						)}
+					</div>
 				</div>
 			</div>
 
 			{/* Current Plan View */}
 			{viewMode === 'plan' && weeklyRecipes.length > 0 && (
-				<div className="grid lg:grid-cols-3 gap-8">
-					<div className="lg:col-span-2">
-						<h2 className="section-header mb-4">This Week&apos;s Meals</h2>
+				<div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
+					<div className="lg:col-span-2 order-2 lg:order-1 space-y-6">
+						<div className="flex items-center justify-between">
+							<h2 className="section-header">This Week&apos;s Meals</h2>
+							<button
+								onClick={startWizard}
+								className="text-sm text-primary hover:text-primary-dark transition-colors flex items-center gap-1 font-medium"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									strokeWidth={2}
+									stroke="currentColor"
+									className="w-4 h-4"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M12 4.5v15m7.5-7.5h-15"
+									/>
+								</svg>
+								Add more
+							</button>
+						</div>
 						{renderRecipeGrid(weeklyRecipes, {
 							showRemove: true,
 							columns: 3,
 						})}
-						<button
-							onClick={startWizard}
-							className="mt-4 text-sm text-charcoal-muted hover:text-primary transition-colors flex items-center gap-1"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								strokeWidth={1.5}
-								stroke="currentColor"
-								className="w-4 h-4"
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M12 4.5v15m7.5-7.5h-15"
-								/>
-							</svg>
-							Add more recipes
-						</button>
 					</div>
 
-					<div>
-						<h2 className="section-header mb-4">Shopping List</h2>
-						<GroceryList
-							recipes={weeklyRecipes}
-							weeklyStaples={weeklyStaples}
-						/>
+					<div className="order-1 lg:order-2 space-y-4">
+						{/* Ingredient Stats Card */}
+						<IngredientStats recipes={weeklyRecipes} />
+
+						{/* Sidebar Tabs */}
+						<div className="flex gap-1 bg-cream rounded-lg p-1">
+							<button
+								onClick={() => setSidebarTab('shopping')}
+								className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+									sidebarTab === 'shopping'
+										? 'bg-white text-charcoal shadow-sm'
+										: 'text-charcoal-muted hover:text-charcoal'
+								}`}
+							>
+								<span className="hidden sm:inline">Shopping List</span>
+								<span className="sm:hidden">Shopping</span>
+							</button>
+							<button
+								onClick={() => setSidebarTab('prep')}
+								className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+									sidebarTab === 'prep'
+										? 'bg-white text-charcoal shadow-sm'
+										: 'text-charcoal-muted hover:text-charcoal'
+								}`}
+							>
+								<span className="hidden sm:inline">Meal Prep</span>
+								<span className="sm:hidden">Prep</span>
+							</button>
+						</div>
+
+						{/* Tab Content */}
+						{sidebarTab === 'shopping' && (
+							<GroceryList
+								recipes={weeklyRecipes}
+								weeklyStaples={weeklyStaples}
+							/>
+						)}
+						{sidebarTab === 'prep' && (
+							<MealPrepInstructions recipes={weeklyRecipes} />
+						)}
 					</div>
 				</div>
 			)}
@@ -798,14 +906,91 @@ function MealPlanContent({
 									</div>
 								)}
 
-							{/* Final grocery list preview */}
+							{/* Ingredient stats and grocery list preview */}
 							{totalSelected > 0 && (
-								<div className="bg-cream-light rounded-xl p-6">
-									<h3 className="section-header mb-4">Grocery List Preview</h3>
-									<GroceryList
-										recipes={getSelectedRecipes()}
-										weeklyStaples={weeklyStaples}
-									/>
+								<div className="space-y-4">
+									{/* Stats Summary */}
+									<div className="bg-white rounded-xl p-5 border border-cream-dark">
+										<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+											<div>
+												<h3 className="font-semibold text-charcoal mb-1">
+													Your Selection Summary
+												</h3>
+												<p className="text-sm text-charcoal-muted">
+													{totalSelected} recipe
+													{totalSelected !== 1 ? 's' : ''} selected
+												</p>
+											</div>
+											<div className="flex items-center gap-6">
+												<div className="text-center">
+													<div className="text-2xl font-bold text-primary">
+														{selectedRecipesStats.totalUniqueIngredients}
+													</div>
+													<div className="text-xs text-charcoal-muted">
+														Ingredients to buy
+													</div>
+												</div>
+												<div className="text-center">
+													<div className="text-2xl font-bold text-green-600">
+														{selectedRecipesStats.overlappingIngredients.length}
+													</div>
+													<div className="text-xs text-charcoal-muted">
+														Shared ingredients
+													</div>
+												</div>
+												{selectedRecipesStats.overlappingIngredients.length >
+													0 && (
+													<div className="text-center">
+														<div className="text-2xl font-bold text-blue-600">
+															{selectedRecipesStats.estimatedSavings}
+														</div>
+														<div className="text-xs text-charcoal-muted">
+															Less waste
+														</div>
+													</div>
+												)}
+											</div>
+										</div>
+										{selectedRecipesStats.overlappingIngredients.length > 0 && (
+											<div className="mt-4 pt-4 border-t border-cream-dark">
+												<p className="text-xs text-charcoal-muted mb-2">
+													Shared ingredients:
+												</p>
+												<div className="flex flex-wrap gap-2">
+													{selectedRecipesStats.overlappingIngredients
+														.slice(0, 8)
+														.map((ing) => (
+															<span
+																key={ing.name}
+																className="px-2.5 py-1 bg-green-100 text-green-700 text-xs rounded-full"
+															>
+																{ing.name} ({ing.count})
+															</span>
+														))}
+													{selectedRecipesStats.overlappingIngredients.length >
+														8 && (
+														<span className="px-2.5 py-1 bg-cream text-charcoal-muted text-xs rounded-full">
+															+
+															{selectedRecipesStats.overlappingIngredients
+																.length - 8}{' '}
+															more
+														</span>
+													)}
+												</div>
+											</div>
+										)}
+									</div>
+
+									{/* Grocery List Preview */}
+									<div className="bg-cream-light rounded-xl p-6">
+										<h3 className="section-header mb-4">
+											Grocery List Preview
+										</h3>
+										<GroceryList
+											recipes={getSelectedRecipes()}
+											weeklyStaples={weeklyStaples}
+										/>
+									</div>
 								</div>
 							)}
 						</div>

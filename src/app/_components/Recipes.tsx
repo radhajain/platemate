@@ -31,15 +31,15 @@ export default function LlmFilteredRecipes({
 
 	return (
 		<div className="flex flex-col gap-8">
-			<div className="bg-white rounded-xl p-6">
-				<h2 className="text-xl font-semibold text-charcoal mb-4">
+			<div className="bg-white rounded-xl p-4 sm:p-6">
+				<h2 className="text-lg sm:text-xl font-semibold text-charcoal mb-3 sm:mb-4">
 					Tell us your preferences
 				</h2>
-				<p className="text-charcoal-muted mb-4">
+				<p className="text-charcoal-muted mb-4 text-sm sm:text-base">
 					{recipes.length} recipes available. Describe your dietary preferences
 					and we will show you matching recipes.
 				</p>
-				<div className="flex gap-3">
+				<div className="flex flex-col sm:flex-row gap-3">
 					<input
 						type="text"
 						placeholder="e.g., vegetarian, gluten-free, low-carb..."
@@ -122,12 +122,12 @@ export function RecipeSelector({
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
-					<h2 className="text-xl font-semibold text-charcoal">
+					<h2 className="text-lg sm:text-xl font-semibold text-charcoal">
 						Select Your Favorites
 					</h2>
-					<p className="text-charcoal-muted">
+					<p className="text-charcoal-muted text-sm sm:text-base">
 						{selectedCount} recipe{selectedCount !== 1 ? 's' : ''} selected
 					</p>
 				</div>
@@ -144,12 +144,13 @@ export function RecipeSelector({
 						isLoading={isPending}
 						disabled={selectedCount === 0}
 					>
-						Save & Continue
+						<span className="hidden sm:inline">Save & Continue</span>
+						<span className="sm:hidden">Save</span>
 					</Button>
 				</div>
 			</div>
 
-			<div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+			<div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 				{recipes.map((recipe: Recipe) => (
 					<RecipeCard
 						key={recipe.url}
@@ -161,8 +162,8 @@ export function RecipeSelector({
 			</div>
 
 			{selectedCount > 0 && (
-				<div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white shadow-lg rounded-full px-6 py-3 flex items-center gap-4 border border-cream-dark">
-					<span className="text-charcoal">
+				<div className="fixed bottom-4 sm:bottom-6 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bg-white shadow-lg rounded-full px-4 sm:px-6 py-3 flex items-center justify-between sm:justify-start gap-4 border border-cream-dark z-40">
+					<span className="text-charcoal text-sm sm:text-base">
 						{selectedCount} recipe{selectedCount !== 1 ? 's' : ''} selected
 					</span>
 					<Button
@@ -170,7 +171,8 @@ export function RecipeSelector({
 						onClick={() => handleSavePreferences()}
 						isLoading={isPending}
 					>
-						Save & Continue
+						<span className="hidden sm:inline">Save & Continue</span>
+						<span className="sm:hidden">Save</span>
 					</Button>
 				</div>
 			)}

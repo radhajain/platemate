@@ -99,9 +99,9 @@ export default function ProfilePage() {
 
 	return (
 		<div className="max-w-2xl mx-auto">
-			<div className="bg-white rounded-xl p-8 shadow-sm">
-				<h1 className="text-2xl font-bold text-charcoal mb-2">Your Profile</h1>
-				<p className="text-charcoal-muted mb-8">
+			<div className="bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-sm">
+				<h1 className="text-xl sm:text-2xl font-bold text-charcoal mb-2">Your Profile</h1>
+				<p className="text-charcoal-muted mb-6 sm:mb-8 text-sm sm:text-base">
 					Set your preferences to see recipes that match your dietary needs.
 				</p>
 
@@ -124,14 +124,14 @@ export default function ProfilePage() {
 				</div>
 
 				{/* Dietary Preferences */}
-				<div className="mb-8">
-					<label className="block text-sm font-medium text-charcoal mb-4">
+				<div className="mb-6 sm:mb-8">
+					<label className="block text-sm font-medium text-charcoal mb-3 sm:mb-4">
 						Dietary Preferences
 					</label>
 					<p className="text-sm text-charcoal-muted mb-4">
 						Select all that apply. Only recipes matching ALL your preferences will be shown.
 					</p>
-					<div className="grid grid-cols-2 gap-3">
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{DIETARY_OPTIONS.map((option) => (
 							<button
 								key={option.value}

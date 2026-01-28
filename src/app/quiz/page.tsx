@@ -11,12 +11,8 @@ export default async function Page() {
 		redirect('/error');
 	}
 	return (
-		<div className="flex p-5 w-full">
-			<div className="justify-center w-full">
-				<div>
-					<LlmFilteredRecipes recipes={data} user={isLoggedIn ? user : null} />
-				</div>
-			</div>
+		<div className="w-full">
+			<LlmFilteredRecipes recipes={data} user={isLoggedIn ? user : null} />
 		</div>
 	);
 }
