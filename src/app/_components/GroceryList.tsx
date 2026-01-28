@@ -9,6 +9,22 @@ import { useQuery } from '@tanstack/react-query';
 import * as React from 'react';
 import { Recipe } from '../../../database.types';
 import { Button } from './Button';
+import {
+	Apple,
+	Milk,
+	Beef,
+	Croissant,
+	Package,
+	Sparkles,
+	Snowflake,
+	MoreHorizontal,
+	Star,
+	ChevronRight,
+	Check,
+	Copy,
+	RotateCcw,
+	ChevronsUpDown,
+} from 'lucide-react';
 
 interface GroceryListProps {
 	recipes: readonly Recipe[];
@@ -94,6 +110,26 @@ export function GroceryList({ recipes, weeklyStaples = [] }: GroceryListProps) {
 			}
 			return next;
 		});
+	};
+
+	const allCategoryNames = React.useMemo(() => {
+		const names = groceryList?.categories.map((c) => c.name) || [];
+		if (weeklyStaples.length > 0) {
+			names.unshift('Weekly Staples');
+		}
+		return names;
+	}, [groceryList, weeklyStaples]);
+
+	const allExpanded = allCategoryNames.every((name) =>
+		expandedCategories.has(name)
+	);
+
+	const toggleAllCategories = () => {
+		if (allExpanded) {
+			setExpandedCategories(new Set());
+		} else {
+			setExpandedCategories(new Set(allCategoryNames));
+		}
 	};
 
 	const clearChecked = () => {
@@ -193,28 +229,53 @@ export function GroceryList({ recipes, weeklyStaples = [] }: GroceryListProps) {
 	}
 
 	return (
-		<div className="bg-white rounded-xl overflow-hidden">
+		<div className="bg-white rounded-xl overflow-hidden lg:rounded-t-none">
 			{/* Header */}
 			<div className="p-4 border-b border-cream-dark">
-				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div className="flex items-center justify-between gap-3">
 					<div>
-						<h2 className="text-lg sm:text-xl font-semibold text-charcoal">Grocery List</h2>
+						<h2 className="text-lg font-semibold text-charcoal">Grocery List</h2>
 						<p className="text-sm text-charcoal-muted">
 							{checkedCount} of {totalItems} items checked
 						</p>
 					</div>
-					<div className="flex gap-2">
-						<Button variant="ghost" onClick={clearChecked}>
-							<span className="hidden sm:inline">Clear Checked</span>
-							<span className="sm:hidden">Clear</span>
-						</Button>
-						<Button variant="primary" onClick={copyToClipboard}>
-							<span className="hidden sm:inline">Copy List</span>
-							<span className="sm:hidden">Copy</span>
-						</Button>
+					<div className="flex items-center gap-1">
+						<button
+							onClick={toggleAllCategories}
+							className="p-2 text-charcoal-muted hover:text-charcoal hover:bg-cream-light rounded-lg transition-colors"
+							title={allExpanded ? 'Collapse all' : 'Expand all'}
+						>
+							<ChevronsUpDown className="w-5 h-5" />
+						</button>
+						<button
+							onClick={clearChecked}
+							className="p-2 text-charcoal-muted hover:text-charcoal hover:bg-cream-light rounded-lg transition-colors"
+							title="Clear checked"
+						>
+							<RotateCcw className="w-5 h-5" />
+						</button>
+						<button
+							onClick={copyToClipboard}
+							className="p-2 text-charcoal-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+							title="Copy list"
+						>
+							<Copy className="w-5 h-5" />
+						</button>
 					</div>
 				</div>
 			</div>
+
+			{/* Progress bar */}
+			{totalItems > 0 && (
+				<div className="px-4 py-2 bg-cream-light">
+					<div className="h-2 bg-cream-dark rounded-full overflow-hidden">
+						<div
+							className="h-full bg-primary transition-all duration-300"
+							style={{ width: `${(checkedCount / totalItems) * 100}%` }}
+						/>
+					</div>
+				</div>
+			)}
 
 			{/* Categories */}
 			<div className="divide-y divide-cream-dark">
@@ -240,21 +301,24 @@ export function GroceryList({ recipes, weeklyStaples = [] }: GroceryListProps) {
 				))}
 			</div>
 
-			{/* Tips */}
-			{groceryList.tips && groceryList.tips.length > 0 && (
-				<div className="p-4 bg-yellow-50 border-t border-yellow-100">
-					<h3 className="text-sm font-medium text-yellow-800 mb-2">
-						Storage Tips
-					</h3>
-					<ul className="text-sm text-yellow-700 space-y-1">
-						{groceryList.tips.map((tip, i) => (
-							<li key={i}>• {tip}</li>
-						))}
-					</ul>
-				</div>
-			)}
 		</div>
 	);
+}
+
+// Get icon for category
+function getCategoryIcon(categoryName: string) {
+	const iconMap: Record<string, React.ReactNode> = {
+		'Weekly Staples': <Star className="w-5 h-5 text-primary" />,
+		Produce: <Apple className="w-5 h-5 text-green-600" />,
+		'Dairy & Eggs': <Milk className="w-5 h-5 text-blue-500" />,
+		'Meat & Seafood': <Beef className="w-5 h-5 text-red-500" />,
+		Bakery: <Croissant className="w-5 h-5 text-amber-600" />,
+		Pantry: <Package className="w-5 h-5 text-orange-500" />,
+		'Spices & Seasonings': <Sparkles className="w-5 h-5 text-purple-500" />,
+		Frozen: <Snowflake className="w-5 h-5 text-cyan-500" />,
+		Other: <MoreHorizontal className="w-5 h-5 text-gray-500" />,
+	};
+	return iconMap[categoryName] || <Package className="w-5 h-5 text-gray-500" />;
 }
 
 interface CategorySectionProps {
@@ -286,8 +350,9 @@ function CategorySection({
 					<span
 						className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
 					>
-						<ChevronRight />
+						<ChevronRight className="w-4 h-4" />
 					</span>
+					{getCategoryIcon(category.name)}
 					<span className="font-medium text-charcoal">{category.name}</span>
 					<span className="text-sm text-charcoal-muted">
 						({checkedCount}/{category.items.length})
@@ -318,7 +383,7 @@ function CategorySection({
 											: 'border-charcoal-muted'
 									}`}
 								>
-									{isChecked && <CheckIcon />}
+									{isChecked && <Check className="w-3 h-3" />}
 								</div>
 								<div className="flex-1">
 									<span
@@ -370,8 +435,9 @@ function StaplesSection({
 					<span
 						className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
 					>
-						<ChevronRight />
+						<ChevronRight className="w-4 h-4" />
 					</span>
+					{getCategoryIcon('Weekly Staples')}
 					<span className="font-medium text-charcoal">Weekly Staples</span>
 					<span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
 						Every week
@@ -405,7 +471,7 @@ function StaplesSection({
 											: 'border-charcoal-muted'
 									}`}
 								>
-									{isChecked && <CheckIcon />}
+									{isChecked && <Check className="w-3 h-3" />}
 								</div>
 								<div className="flex-1">
 									<span
@@ -423,38 +489,3 @@ function StaplesSection({
 	);
 }
 
-function ChevronRight() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="16"
-			height="16"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<polyline points="9 18 15 12 9 6" />
-		</svg>
-	);
-}
-
-function CheckIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="12"
-			height="12"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="3"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<polyline points="20 6 9 17 4 12" />
-		</svg>
-	);
-}

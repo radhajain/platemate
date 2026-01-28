@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import * as React from 'react';
 import {
+	generateMealTagsForRecipe,
 	scrapeRecipeFromUrl,
 	scrapeRecipesFromUrls,
 	ScrapeResult,
@@ -75,6 +76,9 @@ export default function AddRecipePage() {
 				throw insertError;
 			}
 
+			// Generate meal tags in the background (don't await)
+			generateMealTagsForRecipe(url).catch(console.error);
+
 			router.push('/recipes');
 		} catch (err) {
 			console.error('Error saving recipe:', err);
@@ -140,6 +144,9 @@ export default function AddRecipePage() {
 					throw insertError;
 				}
 			} else {
+				// Generate meal tags in the background (don't await)
+				generateMealTagsForRecipe(previewRecipe.url).catch(console.error);
+
 				setSuccess(`Successfully saved "${previewRecipe.name}"!`);
 				setSingleUrl('');
 				setPreviewRecipe(null);
@@ -204,6 +211,11 @@ export default function AddRecipePage() {
 
 				if (insertError) {
 					console.error('Error saving recipes:', insertError);
+				} else {
+					// Generate meal tags in the background for all successful recipes
+					successfulRecipes.forEach((recipe) => {
+						generateMealTagsForRecipe(recipe.url).catch(console.error);
+					});
 				}
 			}
 

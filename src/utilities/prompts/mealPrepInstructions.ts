@@ -89,40 +89,39 @@ Instructions: ${instructions}`;
 		systemPrompt: `You are an expert meal prep coach. Your job is to analyze a week's worth of recipes and create an efficient Sunday meal prep plan.
 
 Your goals:
-1. Identify all tasks that can be done ahead of time (washing, chopping, marinating, pre-cooking grains/proteins, making sauces)
+1. Identify all tasks that can be done ahead of time (chopping, marinating, making sauces/dressings)
 2. Group similar tasks together (e.g., all vegetable chopping at once)
-3. Identify tasks that can be done in parallel (e.g., while rice cooks, chop vegetables)
+3. Identify tasks that can be done in parallel (e.g., while something marinates, chop vegetables)
 4. Order tasks efficiently to minimize total time
 5. Consider food safety (proteins before vegetables, proper storage)
 
-Phases to organize by:
-1. "Prep & Wash" - Washing produce, measuring dry ingredients
-2. "Chop & Dice" - All cutting tasks grouped by ingredient type
-3. "Marinate & Season" - Marinades, spice mixes, dressings
-4. "Cook Grains & Bases" - Rice, quinoa, pasta, beans
-5. "Pre-Cook Proteins" - Any proteins that benefit from advance cooking
-6. "Make Sauces & Dressings" - Sauces, dips, dressings that store well
-7. "Assemble & Store" - Portioning and storage
+Phases to organize by (use ONLY these phases):
+1. "Chop & Dice" - All cutting tasks grouped by ingredient type
+2. "Marinate & Season" - Marinades, spice mixes, dry rubs
+3. "Cook Grains & Bases" - Rice, quinoa, pasta, beans
+4. "Make Sauces & Dressings" - Sauces, dips, dressings that store well
 
-For parallelization, identify which tasks can happen simultaneously (e.g., while something simmers).
+IMPORTANT: Only include these 4 phases. Do NOT include phases for washing, pre-cooking proteins, assembling, or cooking main dishes - those should be done fresh when cooking each meal.
+
+For parallelization, identify which tasks can happen simultaneously (e.g., while grains cook).
 Be realistic about timing - account for setup, cleanup, and transition between tasks.`,
 
 		returnType: `Return your response as valid JSON with this structure:
 {
-  "totalEstimatedTime": "2 hours 15 minutes",
+  "totalEstimatedTime": "1 hour 30 minutes",
   "phases": [
     {
-      "name": "Prep & Wash",
+      "name": "Chop & Dice",
       "tasks": [
         {
-          "task": "Wash and dry all leafy greens",
+          "task": "Dice onions for multiple recipes",
           "duration": "10 minutes",
-          "forRecipe": "Kale Salad, Herb Salad",
+          "forRecipe": "Stir Fry, Soup",
           "canBeParallelized": false,
-          "notes": "Use a salad spinner for best results"
+          "notes": "Store in airtight container"
         }
       ],
-      "estimatedDuration": "15 minutes"
+      "estimatedDuration": "25 minutes"
     }
   ],
   "storageInstructions": [
@@ -130,12 +129,13 @@ Be realistic about timing - account for setup, cleanup, and transition between t
     "Keep marinated proteins in sealed bags, refrigerate up to 3 days"
   ],
   "tips": [
-    "Start with tasks that need the most passive time (marinating, soaking)",
-    "While grains cook, you can complete all chopping tasks"
+    "While grains cook, you can complete all chopping tasks",
+    "Prep all vegetables before moving to marinades"
   ]
 }
 
-Be specific about what can be prepped ahead. Don't include tasks that should be done fresh (like assembling salads or final cooking).
+ONLY use these phase names: "Chop & Dice", "Marinate & Season", "Cook Grains & Bases", "Make Sauces & Dressings"
+Skip any phase that has no relevant tasks. Don't include washing, protein cooking, or assembly phases.
 The totalEstimatedTime should reflect actual hands-on time when parallelization is used efficiently.`,
 
 		examples: '',

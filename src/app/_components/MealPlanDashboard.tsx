@@ -11,15 +11,15 @@ import {
 import { calculateIngredientStats } from '@/utilities/ingredientStats';
 import { User } from '@supabase/supabase-js';
 import { format, startOfWeek } from 'date-fns';
+import { ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Recipe } from '../../../database.types';
 import { RecipeCard, RecipeDetailPanel } from './Card';
 import { GroceryList } from './GroceryList';
-import { IngredientStats } from './IngredientStats';
 import { MealPrepInstructions } from './MealPrepInstructions';
+import { RecipeDialog } from './RecipeDialog';
 
 type ViewMode = 'plan' | 'wizard';
-type SidebarTab = 'shopping' | 'prep';
 type WizardStep = 1 | 2 | 3 | 4;
 
 const MOOD_TAGS = [
@@ -57,7 +57,11 @@ function MealPlanContent({
 	const [expandedRecipeUrl, setExpandedRecipeUrl] = useState<string | null>(
 		initialRecipes.length > 0 ? initialRecipes[0].url : null,
 	);
-	const [sidebarTab, setSidebarTab] = useState<SidebarTab>('shopping');
+	const [dialogRecipe, setDialogRecipe] = useState<Recipe | null>(null);
+	const [isDialogOpen, setIsDialogOpen] = useState(false);
+	const [isShoppingExpanded, setIsShoppingExpanded] = useState(true);
+	const [isPrepExpanded, setIsPrepExpanded] = useState(true);
+	const [isSharedIngredientsExpanded, setIsSharedIngredientsExpanded] = useState(false);
 
 	// Wizard state
 	const [wizardStep, setWizardStep] = useState<WizardStep>(1);
@@ -232,6 +236,18 @@ function MealPlanContent({
 		[user.id],
 	);
 
+	// Open recipe dialog
+	const openRecipeDialog = useCallback((recipe: Recipe) => {
+		setDialogRecipe(recipe);
+		setIsDialogOpen(true);
+	}, []);
+
+	// Close recipe dialog
+	const closeRecipeDialog = useCallback(() => {
+		setIsDialogOpen(false);
+		setDialogRecipe(null);
+	}, []);
+
 	// Reset wizard state
 	const resetWizard = useCallback(() => {
 		setWizardStep(1);
@@ -362,12 +378,12 @@ function MealPlanContent({
 	// Calculate ingredient stats for the current selection
 	const ingredientStats = useMemo(
 		() => calculateIngredientStats(weeklyRecipes),
-		[weeklyRecipes]
+		[weeklyRecipes],
 	);
 
 	const selectedRecipesStats = useMemo(
 		() => calculateIngredientStats(getSelectedRecipes()),
-		[getSelectedRecipes]
+		[getSelectedRecipes],
 	);
 
 	return (
@@ -388,31 +404,11 @@ function MealPlanContent({
 							)}
 						</div>
 						{viewMode === 'plan' && weeklyRecipes.length > 0 && (
-							<div className="flex items-center gap-4 text-sm mt-2">
-								<div className="flex items-center gap-1.5">
-									<svg
-										className="w-4 h-4 text-primary"
-										xmlns="http://www.w3.org/2000/svg"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-										<line x1="3" y1="6" x2="21" y2="6" />
-										<path d="M16 10a4 4 0 0 1-8 0" />
-									</svg>
-									<span className="text-charcoal font-medium">
-										{ingredientStats.totalUniqueIngredients}
-									</span>
-									<span className="text-charcoal-muted">ingredients to buy</span>
-								</div>
-								{ingredientStats.overlappingIngredients.length > 0 && (
+							<div className="mt-2">
+								<div className="flex items-center gap-4 text-sm">
 									<div className="flex items-center gap-1.5">
 										<svg
-											className="w-4 h-4 text-green-600"
+											className="w-4 h-4 text-primary"
 											xmlns="http://www.w3.org/2000/svg"
 											viewBox="0 0 24 24"
 											fill="none"
@@ -421,13 +417,76 @@ function MealPlanContent({
 											strokeLinecap="round"
 											strokeLinejoin="round"
 										>
-											<circle cx="9" cy="12" r="5" />
-											<circle cx="15" cy="12" r="5" />
+											<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+											<line x1="3" y1="6" x2="21" y2="6" />
+											<path d="M16 10a4 4 0 0 1-8 0" />
 										</svg>
-										<span className="text-green-600 font-medium">
-											{ingredientStats.overlappingIngredients.length}
+										<span className="text-charcoal font-medium">
+											{ingredientStats.totalUniqueIngredients}
 										</span>
-										<span className="text-charcoal-muted">shared across recipes</span>
+										<span className="text-charcoal-muted">
+											ingredients to buy
+										</span>
+									</div>
+									{ingredientStats.overlappingIngredients.length > 0 && (
+										<div className="flex items-center gap-1.5">
+											<svg
+												className="w-4 h-4 text-green-600"
+												xmlns="http://www.w3.org/2000/svg"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												strokeWidth="2"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											>
+												<circle cx="9" cy="12" r="5" />
+												<circle cx="15" cy="12" r="5" />
+											</svg>
+											<span className="text-green-600 font-medium">
+												{ingredientStats.overlappingIngredients.length}
+											</span>
+											<span className="text-charcoal-muted">
+												shared
+											</span>
+										</div>
+									)}
+								</div>
+								{ingredientStats.overlappingIngredients.length > 0 && (
+									<div className="mt-3">
+										<button
+											onClick={() => setIsSharedIngredientsExpanded(!isSharedIngredientsExpanded)}
+											className="flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-800 transition-colors"
+										>
+											<ChevronRight
+												className={`w-4 h-4 transition-transform ${isSharedIngredientsExpanded ? 'rotate-90' : ''}`}
+											/>
+											<span>
+												{ingredientStats.overlappingIngredients.length} shared ingredients save you trips to the store
+											</span>
+										</button>
+										{isSharedIngredientsExpanded && (
+											<div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-100">
+												<div className="space-y-2">
+													{ingredientStats.overlappingIngredients.slice(0, 10).map((ing) => (
+														<div
+															key={ing.name}
+															className="flex items-center justify-between py-1.5 px-3 bg-white rounded-md"
+														>
+															<span className="text-sm text-charcoal">{ing.name}</span>
+															<span className="text-xs text-charcoal-muted">
+																Used in {ing.count} recipes
+															</span>
+														</div>
+													))}
+													{ingredientStats.overlappingIngredients.length > 10 && (
+														<p className="text-xs text-charcoal-muted text-center pt-2">
+															+{ingredientStats.overlappingIngredients.length - 10} more shared ingredients
+														</p>
+													)}
+												</div>
+											</div>
+										)}
 									</div>
 								)}
 							</div>
@@ -461,10 +520,13 @@ function MealPlanContent({
 
 			{/* Current Plan View */}
 			{viewMode === 'plan' && weeklyRecipes.length > 0 && (
-				<div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
-					<div className="lg:col-span-2 order-2 lg:order-1 space-y-6">
-						<div className="flex items-center justify-between">
-							<h2 className="section-header">This Week&apos;s Meals</h2>
+				<div className="space-y-6">
+					{/* This Week's Meals - Recipe cards with thumbnails */}
+					<div className="bg-white rounded-xl p-4 sm:p-6">
+						<div className="flex items-center justify-between mb-4">
+							<h2 className="font-semibold text-charcoal">
+								This Week&apos;s Meals
+							</h2>
 							<button
 								onClick={startWizard}
 								className="text-sm text-primary hover:text-primary-dark transition-colors flex items-center gap-1 font-medium"
@@ -483,58 +545,140 @@ function MealPlanContent({
 										d="M12 4.5v15m7.5-7.5h-15"
 									/>
 								</svg>
-								Add more
+								Edit
 							</button>
 						</div>
-						{renderRecipeGrid(weeklyRecipes, {
-							showRemove: true,
-							columns: 3,
-						})}
+						<div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-thin">
+							{weeklyRecipes.map((recipe) => (
+								<div
+									key={recipe.url}
+									className="flex-shrink-0 w-40 sm:w-48 cursor-pointer group"
+									onClick={() => openRecipeDialog(recipe)}
+								>
+									<div className="relative aspect-[4/3] rounded-lg overflow-hidden mb-2">
+										{recipe.image ? (
+											<img
+												src={recipe.image}
+												alt={recipe.name || ''}
+												className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+											/>
+										) : (
+											<div className="w-full h-full bg-cream flex items-center justify-center">
+												<svg
+													className="w-8 h-8 text-charcoal-muted"
+													xmlns="http://www.w3.org/2000/svg"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z" />
+													<line x1="6" y1="17" x2="18" y2="17" />
+												</svg>
+											</div>
+										)}
+										{/* Remove button overlay */}
+										<button
+											onClick={(e) => {
+												e.stopPropagation();
+												handleRemoveFromPlan(recipe.url);
+											}}
+											className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-white rounded-full text-charcoal-muted hover:text-red-500 transition-colors shadow-sm opacity-0 group-hover:opacity-100"
+											title="Remove from plan"
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												fill="none"
+												viewBox="0 0 24 24"
+												strokeWidth={2}
+												stroke="currentColor"
+												className="w-4 h-4"
+											>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													d="M6 18L18 6M6 6l12 12"
+												/>
+											</svg>
+										</button>
+									</div>
+									<p className="text-sm font-medium text-charcoal truncate group-hover:text-primary transition-colors">
+										{recipe.name}
+									</p>
+									{recipe.cookTime && (
+										<p className="text-xs text-charcoal-muted">
+											{recipe.cookTime}
+										</p>
+									)}
+								</div>
+							))}
+						</div>
 					</div>
 
-					<div className="order-1 lg:order-2 space-y-4">
-						{/* Ingredient Stats Card */}
-						<IngredientStats recipes={weeklyRecipes} />
-
-						{/* Sidebar Tabs */}
-						<div className="flex gap-1 bg-cream rounded-lg p-1">
+					{/* Shopping List & Meal Prep - Side by side on desktop, stacked on mobile */}
+					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						{/* Shopping List Section - Collapsible on mobile */}
+						<div>
 							<button
-								onClick={() => setSidebarTab('shopping')}
-								className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-									sidebarTab === 'shopping'
-										? 'bg-white text-charcoal shadow-sm'
-										: 'text-charcoal-muted hover:text-charcoal'
-								}`}
+								onClick={() => setIsShoppingExpanded(!isShoppingExpanded)}
+								className="w-full flex items-center justify-between p-4 bg-white rounded-t-xl lg:hidden border-b border-cream-dark"
 							>
-								<span className="hidden sm:inline">Shopping List</span>
-								<span className="sm:hidden">Shopping</span>
+								<span className="font-semibold text-charcoal">
+									Shopping List
+								</span>
+								{isShoppingExpanded ? (
+									<ChevronUp className="w-5 h-5 text-charcoal-muted" />
+								) : (
+									<ChevronDown className="w-5 h-5 text-charcoal-muted" />
+								)}
 							</button>
-							<button
-								onClick={() => setSidebarTab('prep')}
-								className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-									sidebarTab === 'prep'
-										? 'bg-white text-charcoal shadow-sm'
-										: 'text-charcoal-muted hover:text-charcoal'
-								}`}
+							<div
+								className={`${
+									isShoppingExpanded ? 'block' : 'hidden'
+								} lg:block`}
 							>
-								<span className="hidden sm:inline">Meal Prep</span>
-								<span className="sm:hidden">Prep</span>
-							</button>
+								<GroceryList
+									recipes={weeklyRecipes}
+									weeklyStaples={weeklyStaples}
+								/>
+							</div>
 						</div>
 
-						{/* Tab Content */}
-						{sidebarTab === 'shopping' && (
-							<GroceryList
-								recipes={weeklyRecipes}
-								weeklyStaples={weeklyStaples}
-							/>
-						)}
-						{sidebarTab === 'prep' && (
-							<MealPrepInstructions recipes={weeklyRecipes} />
-						)}
+						{/* Meal Prep Section - Collapsible on mobile */}
+						<div>
+							<button
+								onClick={() => setIsPrepExpanded(!isPrepExpanded)}
+								className="w-full flex items-center justify-between p-4 bg-white rounded-t-xl lg:hidden border-b border-cream-dark"
+							>
+								<span className="font-semibold text-charcoal">Meal Prep</span>
+								{isPrepExpanded ? (
+									<ChevronUp className="w-5 h-5 text-charcoal-muted" />
+								) : (
+									<ChevronDown className="w-5 h-5 text-charcoal-muted" />
+								)}
+							</button>
+							<div
+								className={`${isPrepExpanded ? 'block' : 'hidden'} lg:block`}
+							>
+								<MealPrepInstructions recipes={weeklyRecipes} />
+							</div>
+						</div>
 					</div>
 				</div>
 			)}
+
+			{/* Recipe Dialog */}
+			<RecipeDialog
+				recipe={dialogRecipe}
+				isOpen={isDialogOpen}
+				onClose={closeRecipeDialog}
+				isLiked={dialogRecipe ? likedUrls.has(dialogRecipe.url) : false}
+				onLikeToggle={
+					dialogRecipe ? () => handleLikeToggle(dialogRecipe.url) : undefined
+				}
+			/>
 
 			{/* Empty Plan State */}
 			{viewMode === 'plan' && weeklyRecipes.length === 0 && (

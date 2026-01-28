@@ -1,9 +1,6 @@
 'use client';
 
-import {
-	calculateIngredientStats,
-	IngredientStats as Stats,
-} from '@/utilities/ingredientStats';
+import { calculateIngredientStats } from '@/utilities/ingredientStats';
 import { useMemo, useState } from 'react';
 import { Recipe } from '../../../database.types';
 
@@ -87,9 +84,7 @@ export function IngredientStats({
 						onClick={() => setShowDetails(!showDetails)}
 						className="w-full flex items-center justify-between text-sm font-medium text-charcoal hover:text-primary transition-colors"
 					>
-						<span>
-							Shared ingredients save you trips to the store
-						</span>
+						<span>Shared ingredients save you trips to the store</span>
 						<ChevronIcon
 							className={`w-5 h-5 transition-transform ${showDetails ? 'rotate-180' : ''}`}
 						/>

@@ -579,3 +579,87 @@ export async function generateMealPrepInstructions(
 
 	return result || null;
 }
+
+// ==================== Meal Tag Functions ====================
+
+import {
+	generateMealTagsPrompt,
+	MEAL_TAG_SCHEMA,
+	MealTagResult,
+	MEAL_TAG_OPTIONS,
+} from '@/utilities/prompts/generateMealTags';
+
+export async function generateAndSaveMealTags(
+	recipeUrl: string,
+): Promise<string[] | null> {
+	const supabase = await createClient();
+
+	// Get recipe details
+	const { data: recipe, error: fetchError } = await supabase
+		.from('recipes')
+		.select('*')
+		.eq('url', recipeUrl)
+		.single();
+
+	if (fetchError || !recipe) {
+		console.error('Error fetching recipe:', fetchError);
+		return null;
+	}
+
+	// Skip if already has meal tags
+	if (recipe.dietary_tags && recipe.dietary_tags.length > 0) {
+		return recipe.dietary_tags;
+	}
+
+	// Generate tags using LLM
+	const prompt = generateMealTagsPrompt(recipe);
+	const result = await llmStructured<MealTagResult>(
+		prompt.systemPrompt,
+		prompt.taskPrompt,
+		MEAL_TAG_SCHEMA,
+	);
+
+	if (!result || !result.tags || result.tags.length === 0) {
+		console.error('Failed to generate meal tags');
+		return null;
+	}
+
+	// Filter to only allowed tags
+	const validTags = result.tags.filter((tag) =>
+		MEAL_TAG_OPTIONS.includes(tag as (typeof MEAL_TAG_OPTIONS)[number]),
+	);
+
+	// Save tags to database
+	const { error: updateError } = await supabase
+		.from('recipes')
+		.update({ meal_tags: validTags })
+		.eq('url', recipeUrl);
+
+	if (updateError) {
+		console.error('Error saving meal tags:', updateError);
+		return null;
+	}
+
+	return validTags;
+}
+
+export async function getUniqueMealTags(): Promise<string[]> {
+	const supabase = await createClient();
+
+	const { data: recipes, error } = await supabase
+		.from('recipes')
+		.select('dietary_tags')
+		.not('dietary_tags', 'is', null);
+
+	if (error) {
+		console.error('Error fetching dietary tags:', error);
+		return [];
+	}
+
+	const allTags = new Set<string>();
+	recipes?.forEach((recipe) => {
+		recipe.dietary_tags?.forEach((tag: string) => allTags.add(tag));
+	});
+
+	return Array.from(allTags).sort();
+}

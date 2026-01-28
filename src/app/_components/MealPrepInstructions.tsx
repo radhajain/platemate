@@ -6,6 +6,24 @@ import { useQuery } from '@tanstack/react-query';
 import * as React from 'react';
 import { Recipe } from '../../../database.types';
 import { Button } from './Button';
+import {
+	Copy,
+	RotateCcw,
+	ChevronRight,
+	Check,
+	CheckCircle,
+	Clock,
+	Droplets,
+	Scissors,
+	Flame,
+	Wheat,
+	Beef,
+	FlaskConical,
+	Package,
+	Info,
+	Lightbulb,
+	ChevronsUpDown,
+} from 'lucide-react';
 
 interface MealPrepInstructionsProps {
 	recipes: readonly Recipe[];
@@ -64,6 +82,22 @@ export function MealPrepInstructions({ recipes }: MealPrepInstructionsProps) {
 		enabled: recipes.length > 0,
 		staleTime: 1000 * 60 * 10, // Cache for 10 minutes
 	});
+
+	const allPhaseNames = React.useMemo(() => {
+		return prepInstructions?.phases.map((p) => p.name) || [];
+	}, [prepInstructions]);
+
+	const allExpanded = allPhaseNames.length > 0 && allPhaseNames.every((name) =>
+		expandedPhases.has(name)
+	);
+
+	const toggleAllPhases = () => {
+		if (allExpanded) {
+			setExpandedPhases(new Set());
+		} else {
+			setExpandedPhases(new Set(allPhaseNames));
+		}
+	};
 
 	const togglePhase = (phaseName: string) => {
 		setExpandedPhases((prev) => {
@@ -198,34 +232,41 @@ export function MealPrepInstructions({ recipes }: MealPrepInstructionsProps) {
 	const completedCount = completedTasks.size;
 
 	return (
-		<div className="bg-white rounded-xl overflow-hidden">
+		<div className="bg-white rounded-xl overflow-hidden lg:rounded-t-none">
 			{/* Header */}
-			<div className="p-4 border-b border-cream-dark bg-gradient-to-r from-primary/5 to-primary/10">
-				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+			<div className="p-4 border-b border-cream-dark">
+				<div className="flex items-center justify-between gap-3">
 					<div>
-						<div className="flex items-center gap-2">
-							<ClockIcon />
-							<h2 className="text-lg sm:text-xl font-semibold text-charcoal">
-								Sunday Meal Prep
-							</h2>
-						</div>
+						<h2 className="text-lg font-semibold text-charcoal">
+							Sunday Meal Prep
+						</h2>
 						<p className="text-sm text-charcoal-muted mt-1">
-							Est. time:{' '}
-							<span className="font-medium text-primary">
-								{prepInstructions.totalEstimatedTime}
-							</span>{' '}
-							&bull; {completedCount} of {totalTasks} tasks done
+							<Clock className="w-3.5 h-3.5 inline mr-1" />
+							{prepInstructions.totalEstimatedTime} &bull; {completedCount}/{totalTasks} done
 						</p>
 					</div>
-					<div className="flex gap-2">
-						<Button variant="ghost" onClick={clearCompleted}>
-							<span className="hidden sm:inline">Reset Progress</span>
-							<span className="sm:hidden">Reset</span>
-						</Button>
-						<Button variant="primary" onClick={copyToClipboard}>
-							<span className="hidden sm:inline">Copy Plan</span>
-							<span className="sm:hidden">Copy</span>
-						</Button>
+					<div className="flex items-center gap-1">
+						<button
+							onClick={toggleAllPhases}
+							className="p-2 text-charcoal-muted hover:text-charcoal hover:bg-cream-light rounded-lg transition-colors"
+							title={allExpanded ? 'Collapse all' : 'Expand all'}
+						>
+							<ChevronsUpDown className="w-5 h-5" />
+						</button>
+						<button
+							onClick={clearCompleted}
+							className="p-2 text-charcoal-muted hover:text-charcoal hover:bg-cream-light rounded-lg transition-colors"
+							title="Reset progress"
+						>
+							<RotateCcw className="w-5 h-5" />
+						</button>
+						<button
+							onClick={copyToClipboard}
+							className="p-2 text-charcoal-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+							title="Copy plan"
+						>
+							<Copy className="w-5 h-5" />
+						</button>
 					</div>
 				</div>
 			</div>
@@ -252,47 +293,27 @@ export function MealPrepInstructions({ recipes }: MealPrepInstructionsProps) {
 						onToggle={() => togglePhase(phase.name)}
 						completedTasks={completedTasks}
 						onToggleTask={toggleTask}
+						storageInstructions={prepInstructions.storageInstructions}
+						tips={prepInstructions.tips}
 					/>
 				))}
 			</div>
-
-			{/* Storage Instructions */}
-			{prepInstructions.storageInstructions.length > 0 && (
-				<div className="p-4 bg-blue-50 border-t border-blue-100">
-					<h3 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
-						<StorageIcon />
-						Storage Instructions
-					</h3>
-					<ul className="text-sm text-blue-700 space-y-1">
-						{prepInstructions.storageInstructions.map((instruction, i) => (
-							<li key={i} className="flex items-start gap-2">
-								<span className="text-blue-400 mt-1">•</span>
-								{instruction}
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
-
-			{/* Tips */}
-			{prepInstructions.tips.length > 0 && (
-				<div className="p-4 bg-yellow-50 border-t border-yellow-100">
-					<h3 className="text-sm font-medium text-yellow-800 mb-2 flex items-center gap-2">
-						<TipIcon />
-						Pro Tips
-					</h3>
-					<ul className="text-sm text-yellow-700 space-y-1">
-						{prepInstructions.tips.map((tip, i) => (
-							<li key={i} className="flex items-start gap-2">
-								<span className="text-yellow-400 mt-1">•</span>
-								{tip}
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
 		</div>
 	);
+}
+
+// Get icon for phase
+function getPhaseIcon(phaseName: string) {
+	const iconMap: Record<string, React.ReactNode> = {
+		'Prep & Wash': <Droplets className="w-5 h-5 text-blue-500" />,
+		'Chop & Dice': <Scissors className="w-5 h-5 text-orange-500" />,
+		'Marinate & Season': <FlaskConical className="w-5 h-5 text-purple-500" />,
+		'Cook Grains & Bases': <Wheat className="w-5 h-5 text-amber-600" />,
+		'Pre-Cook Proteins': <Beef className="w-5 h-5 text-red-500" />,
+		'Make Sauces & Dressings': <Flame className="w-5 h-5 text-orange-600" />,
+		'Assemble & Store': <Package className="w-5 h-5 text-green-600" />,
+	};
+	return iconMap[phaseName] || <Clock className="w-5 h-5 text-gray-500" />;
 }
 
 interface PhaseSectionProps {
@@ -301,6 +322,8 @@ interface PhaseSectionProps {
 	onToggle: () => void;
 	completedTasks: Set<string>;
 	onToggleTask: (key: string) => void;
+	storageInstructions?: string[];
+	tips?: string[];
 }
 
 function PhaseSection({
@@ -309,12 +332,17 @@ function PhaseSection({
 	onToggle,
 	completedTasks,
 	onToggleTask,
+	storageInstructions = [],
+	tips = [],
 }: PhaseSectionProps) {
 	const completedCount = phase.tasks.filter((task) =>
 		completedTasks.has(`${phase.name}-${task.task}`),
 	).length;
 	const allCompleted =
 		completedCount === phase.tasks.length && phase.tasks.length > 0;
+
+	// Check if this is the last phase (Assemble & Store) to show storage tips
+	const isStoragePhase = phase.name === 'Assemble & Store';
 
 	return (
 		<div>
@@ -328,8 +356,9 @@ function PhaseSection({
 					<span
 						className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
 					>
-						<ChevronRight />
+						<ChevronRight className="w-4 h-4" />
 					</span>
+					{getPhaseIcon(phase.name)}
 					<span
 						className={`font-medium ${allCompleted ? 'text-green-700' : 'text-charcoal'}`}
 					>
@@ -343,9 +372,7 @@ function PhaseSection({
 					</span>
 				</div>
 				{allCompleted && (
-					<span className="text-green-600">
-						<CheckCircleIcon />
-					</span>
+					<CheckCircle className="w-5 h-5 text-green-600" />
 				)}
 			</button>
 
@@ -360,6 +387,40 @@ function PhaseSection({
 							onToggle={() => onToggleTask(`${phase.name}-${task.task}`)}
 						/>
 					))}
+					{/* Show storage instructions in the Assemble & Store phase */}
+					{isStoragePhase && storageInstructions.length > 0 && (
+						<div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+							<div className="flex items-center gap-2 text-sm font-medium text-blue-800 mb-2">
+								<Info className="w-4 h-4" />
+								Storage Tips
+							</div>
+							<ul className="text-sm text-blue-700 space-y-1">
+								{storageInstructions.map((instruction, i) => (
+									<li key={i} className="flex items-start gap-2">
+										<span className="text-blue-400 mt-0.5">•</span>
+										{instruction}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+					{/* Show pro tips at the end of first phase */}
+					{phase.name === 'Prep & Wash' && tips.length > 0 && (
+						<div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+							<div className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-2">
+								<Lightbulb className="w-4 h-4" />
+								Pro Tips
+							</div>
+							<ul className="text-sm text-amber-700 space-y-1">
+								{tips.map((tip, i) => (
+									<li key={i} className="flex items-start gap-2">
+										<span className="text-amber-400 mt-0.5">•</span>
+										{tip}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
 				</div>
 			)}
 		</div>
@@ -391,7 +452,7 @@ function TaskItem({ task, isCompleted, onToggle }: TaskItemProps) {
 							: 'border-charcoal-muted'
 					}`}
 				>
-					{isCompleted && <CheckIcon />}
+					{isCompleted && <Check className="w-3 h-3" />}
 				</div>
 				<div className="flex-1 min-w-0">
 					<div className="flex flex-wrap items-center gap-2">
@@ -407,12 +468,6 @@ function TaskItem({ task, isCompleted, onToggle }: TaskItemProps) {
 						<span className="text-xs px-2 py-0.5 bg-charcoal-muted/10 text-charcoal-muted rounded-full">
 							{task.duration}
 						</span>
-						{task.canBeParallelized && (
-							<span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full flex items-center gap-1">
-								<ParallelIcon />
-								<span className="hidden sm:inline">Parallel</span>
-							</span>
-						)}
 					</div>
 					<p className="text-sm text-charcoal-muted mt-1">
 						For: {task.forRecipe}
@@ -428,139 +483,3 @@ function TaskItem({ task, isCompleted, onToggle }: TaskItemProps) {
 	);
 }
 
-// Icons
-function ChevronRight() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="16"
-			height="16"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<polyline points="9 18 15 12 9 6" />
-		</svg>
-	);
-}
-
-function CheckIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="12"
-			height="12"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="3"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<polyline points="20 6 9 17 4 12" />
-		</svg>
-	);
-}
-
-function CheckCircleIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="20"
-			height="20"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-			<polyline points="22 4 12 14.01 9 11.01" />
-		</svg>
-	);
-}
-
-function ClockIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="20"
-			height="20"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			className="text-primary"
-		>
-			<circle cx="12" cy="12" r="10" />
-			<polyline points="12 6 12 12 16 14" />
-		</svg>
-	);
-}
-
-function StorageIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="16"
-			height="16"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<path d="M5 3a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5z" />
-			<path d="M8 10h8" />
-			<path d="M8 14h4" />
-		</svg>
-	);
-}
-
-function TipIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="16"
-			height="16"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-		</svg>
-	);
-}
-
-function ParallelIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="12"
-			height="12"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<path d="M8 6h13" />
-			<path d="M8 12h13" />
-			<path d="M8 18h13" />
-			<path d="M3 6h.01" />
-			<path d="M3 12h.01" />
-			<path d="M3 18h.01" />
-		</svg>
-	);
-}
