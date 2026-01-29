@@ -76,8 +76,8 @@ export default function AddRecipePage() {
 				throw insertError;
 			}
 
-			// Generate meal tags in the background (don't await)
-			generateMealTagsForRecipe(url).catch(console.error);
+			// Generate meal tags before navigating
+			await generateMealTagsForRecipe(url);
 
 			router.push('/recipes');
 		} catch (err) {
@@ -144,8 +144,8 @@ export default function AddRecipePage() {
 					throw insertError;
 				}
 			} else {
-				// Generate meal tags in the background (don't await)
-				generateMealTagsForRecipe(previewRecipe.url).catch(console.error);
+				// Generate meal tags before showing success
+				await generateMealTagsForRecipe(previewRecipe.url);
 
 				setSuccess(`Successfully saved "${previewRecipe.name}"!`);
 				setSingleUrl('');
@@ -212,10 +212,10 @@ export default function AddRecipePage() {
 				if (insertError) {
 					console.error('Error saving recipes:', insertError);
 				} else {
-					// Generate meal tags in the background for all successful recipes
-					successfulRecipes.forEach((recipe) => {
-						generateMealTagsForRecipe(recipe.url).catch(console.error);
-					});
+					// Generate meal tags for all successful recipes
+					await Promise.all(
+						successfulRecipes.map((recipe) => generateMealTagsForRecipe(recipe.url))
+					);
 				}
 			}
 
