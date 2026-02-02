@@ -179,7 +179,7 @@ function RecipesContent() {
 								? `${filteredRecipes.length} of ${recipes.length} recipes`
 								: `${recipes.length} recipes`}
 							{userId && !hasActiveFilters
-								? ' match your dietary preferences'
+								? ' sorted by your dietary preferences'
 								: ''}
 							{userId && likedCount > 0 && (
 								<span className="text-primary font-medium">

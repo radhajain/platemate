@@ -9,7 +9,7 @@ export function AuthHashHandler() {
 	const supabase = createClient();
 
 	useEffect(() => {
-		// Check if there's an access_token in the URL hash (magic link)
+		// Check if there's an access_token in the URL hash (magic link or recovery)
 		const hashParams = new URLSearchParams(
 			window.location.hash.substring(1)
 		);
@@ -17,7 +17,7 @@ export function AuthHashHandler() {
 		const refreshToken = hashParams.get('refresh_token');
 		const type = hashParams.get('type');
 
-		if (accessToken && refreshToken && type === 'magiclink') {
+		if (accessToken && refreshToken && (type === 'magiclink' || type === 'recovery')) {
 			// Set the session from the hash tokens
 			supabase.auth
 				.setSession({
@@ -32,6 +32,21 @@ export function AuthHashHandler() {
 					}
 
 					if (data.user) {
+						// Clear the hash from the URL
+						window.history.replaceState(
+							null,
+							'',
+							window.location.pathname
+						);
+
+						// Handle password recovery - redirect to update password page
+						if (type === 'recovery') {
+							router.push('/update-password');
+							router.refresh();
+							return;
+						}
+
+						// Handle magic link - regular sign in flow
 						// Handle quiz results if they exist in localStorage
 						const quizResults = localStorage.getItem('likedRecipesResults');
 						if (quizResults) {
@@ -50,13 +65,6 @@ export function AuthHashHandler() {
 								// Ignore parse errors
 							}
 						}
-
-						// Clear the hash from the URL
-						window.history.replaceState(
-							null,
-							'',
-							window.location.pathname
-						);
 
 						// Redirect to user's dashboard
 						router.push(`/${data.user.id}`);

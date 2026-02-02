@@ -267,25 +267,30 @@ export async function getFilteredRecipes(userId: string): Promise<Recipe[]> {
 
 	if (!recipes) return [];
 
-	// If no preferences, return all recipes
+	// If no preferences, return all recipes in alphabetical order
 	if (preferences.length === 0) {
 		return recipes;
 	}
 
-	// Filter recipes based on dietary tags
-	// A recipe matches if it has ALL the user's dietary preferences as tags
-	// OR if dietary_tags is null (not yet classified)
-	return recipes.filter((recipe) => {
-		if (!recipe.dietary_tags || recipe.dietary_tags.length === 0) {
-			// Include unclassified recipes for now
-			return true;
+	// Sort recipes by match score (how many user preferences they match)
+	// Recipes matching more preferences appear first
+	return recipes.sort((a, b) => {
+		const scoreA = getMatchScore(a.dietary_tags, preferences);
+		const scoreB = getMatchScore(b.dietary_tags, preferences);
+		// Sort by score descending, then by name ascending for ties
+		if (scoreB !== scoreA) {
+			return scoreB - scoreA;
 		}
-
-		// Check if recipe matches user preferences
-		// For "exclusion" preferences (no-red-meat, vegetarian, etc.),
-		// the recipe's dietary_tags should include them
-		return preferences.every((pref) => recipe.dietary_tags?.includes(pref));
+		return (a.name || '').localeCompare(b.name || '');
 	});
+}
+
+function getMatchScore(
+	tags: string[] | null,
+	preferences: string[],
+): number {
+	if (!tags || tags.length === 0) return 0;
+	return preferences.filter((pref) => tags.includes(pref)).length;
 }
 
 export async function generateWeeklyRecipes(
