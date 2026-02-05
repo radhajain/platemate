@@ -8,7 +8,7 @@ import {
 } from '@/utilities/prompts/generateMealTags';
 import { NextResponse } from 'next/server';
 
-export const maxDuration = 300; // 5 minutes max for this API route
+export const maxDuration = 60; // 1 minutes max for this API route
 
 export async function POST(request: Request) {
 	try {
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 			console.error('Error fetching recipes:', fetchError);
 			return NextResponse.json(
 				{ error: 'Failed to fetch recipes', details: fetchError.message },
-				{ status: 500 }
+				{ status: 500 },
 			);
 		}
 
@@ -45,7 +45,12 @@ export async function POST(request: Request) {
 			});
 		}
 
-		const results: { url: string; name: string | null; tags: string[] | null; error?: string }[] = [];
+		const results: {
+			url: string;
+			name: string | null;
+			tags: string[] | null;
+			error?: string;
+		}[] = [];
 
 		// Process each recipe
 		for (const recipe of recipes) {
@@ -55,7 +60,7 @@ export async function POST(request: Request) {
 				const result = await llmStructured<MealTagResult>(
 					prompt.systemPrompt,
 					prompt.taskPrompt,
-					MEAL_TAG_SCHEMA
+					MEAL_TAG_SCHEMA,
 				);
 
 				if (!result || !result.tags || result.tags.length === 0) {
@@ -70,7 +75,7 @@ export async function POST(request: Request) {
 
 				// Filter to only allowed tags
 				const validTags = result.tags.filter((tag) =>
-					MEAL_TAG_OPTIONS.includes(tag as (typeof MEAL_TAG_OPTIONS)[number])
+					MEAL_TAG_OPTIONS.includes(tag as (typeof MEAL_TAG_OPTIONS)[number]),
 				);
 
 				// Save tags to database
@@ -119,7 +124,7 @@ export async function POST(request: Request) {
 		console.error('Backfill error:', error);
 		return NextResponse.json(
 			{ error: 'Internal server error' },
-			{ status: 500 }
+			{ status: 500 },
 		);
 	}
 }
@@ -154,7 +159,7 @@ export async function GET() {
 		console.error('Status check error:', error);
 		return NextResponse.json(
 			{ error: 'Internal server error' },
-			{ status: 500 }
+			{ status: 500 },
 		);
 	}
 }
